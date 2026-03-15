@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>HMS — UI Preview</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <style>
+        :root {
+            --clay-primary: #6C63FF; --clay-secondary: #FF6584;
+            --clay-success: #43D9A2; --clay-warning: #FFBE0B;
+            --clay-danger: #FF5C5C; --clay-info: #48CAE4;
+            --clay-bg: #F0F4FF; --clay-surface: #FFFFFF; --clay-card: #FFFFFF;
+            --clay-text: #2D3250; --clay-text-muted: #7B7F9E; --clay-border: #E2E8FF;
+            --pastel-purple: #E8E4FF; --pastel-pink: #FFE4EC; --pastel-green: #D6F5EC;
+            --pastel-yellow: #FFF4CC; --pastel-blue: #D4F1F9; --pastel-orange: #FFE8D6;
+            --shadow-sm: 4px 4px 0px #D0CEFF; --shadow-md: 6px 6px 0px #C5C0FF;
+            --shadow-card: 6px 6px 16px rgba(108,99,255,0.15);
+            --radius-sm: 12px; --radius-md: 18px; --radius-lg: 24px;
+            --radius-xl: 32px; --radius-full: 9999px;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Nunito', sans-serif; background: var(--clay-bg); color: var(--clay-text); }
+
+        /* NAV */
+        .preview-nav {
+            background: #fff; border-bottom: 2.5px solid var(--clay-border);
+            padding: 0.75rem 2rem; display: flex; align-items: center; gap: 1rem;
+            position: sticky; top: 0; z-index: 100;
+            box-shadow: 0 4px 12px rgba(108,99,255,0.08);
+        }
+        .preview-nav span { font-weight: 800; color: var(--clay-primary); font-size: 1.1rem; }
+        .tab-btn {
+            padding: 0.45rem 1.1rem; border-radius: var(--radius-full);
+            border: 2px solid var(--clay-border); background: var(--clay-bg);
+            font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 0.82rem;
+            cursor: pointer; color: var(--clay-text-muted); transition: all 0.2s;
+        }
+        .tab-btn.active, .tab-btn:hover {
+            background: var(--pastel-purple); color: var(--clay-primary);
+            border-color: var(--clay-primary);
+        }
+
+        /* TABS */
+        .tab-content { display: none; } .tab-content.active { display: block; }
+
+        /* AUTH */
+        .auth-wrapper {
+            min-height: calc(100vh - 60px); display: flex; align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #E8E4FF 0%, #FFE4EC 50%, #D4F1F9 100%);
+            padding: 2rem;
+        }
+        .auth-card {
+            background: #fff; border-radius: var(--radius-xl);
+            border: 2.5px solid var(--clay-border);
+            box-shadow: 10px 10px 0px #D0CEFF;
+            padding: 2.5rem; width: 100%; max-width: 460px;
+        }
+        .auth-logo { text-align: center; margin-bottom: 1.75rem; }
+        .auth-logo-icon {
+            width: 72px; height: 72px; background: var(--pastel-purple);
+            border-radius: var(--radius-lg); display: flex; align-items: center;
+            justify-content: center; font-size: 2rem; margin: 0 auto 0.75rem;
+            border: 2.5px solid var(--clay-border); box-shadow: var(--shadow-sm);
+        }
+        .auth-title { font-size: 1.6rem; font-weight: 800; color: var(--clay-text); }
+        .auth-subtitle { color: var(--clay-text-muted); font-size: 0.9rem; margin-top: 0.25rem; }
+        .clay-label {
+            display: block; font-weight: 700; font-size: 0.82rem;
+            color: var(--clay-text-muted); margin-bottom: 0.4rem;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .clay-input {
+            width: 100%; padding: 0.75rem 1rem;
+            border: 2.5px solid var(--clay-border); border-radius: var(--radius-md);
+            font-family: 'Nunito', sans-serif; font-size: 0.9rem; color: var(--clay-text);
+            background: var(--clay-bg); outline: none; transition: all 0.2s;
+        }
+        .clay-input:focus { border-color: var(--clay-primary); background: #fff; box-shadow: 0 0 0 4px rgba(108,99,255,0.15); }
+        .form-group { margin-bottom: 1.2rem; }
+        .clay-btn {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.7rem 1.5rem; border-radius: var(--radius-full);
+            font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 0.9rem;
+            cursor: pointer; border: 2.5px solid transparent; transition: all 0.2s;
+            text-decoration: none;
+        }
+        .clay-btn-primary {
+            background: var(--clay-primary); color: #fff;
+            box-shadow: var(--shadow-sm);
+        }
+        .clay-btn-primary:hover { transform: translate(-2px,-2px); box-shadow: var(--shadow-md); }
+        .clay-btn-block { width: 100%; justify-content: center; }
+        .clay-btn-lg { padding: 0.85rem 2rem; font-size: 1rem; }
+        .remember-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+        .clay-checkbox { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+        .clay-checkbox input { width: 18px; height: 18px; accent-color: var(--clay-primary); }
+        .clay-checkbox span { font-size: 0.85rem; font-weight: 600; color: var(--clay-text-muted); }
+        .forgot-link { font-size: 0.85rem; font-weight: 700; color: var(--clay-primary); text-decoration: none; }
+        .register-prompt { text-align: center; margin-top: 1.5rem; font-size: 0.85rem; color: var(--clay-text-muted); }
+        .register-prompt a { color: var(--clay-primary); font-weight: 700; text-decoration: none; }
+        .password-wrapper { position: relative; }
+        .toggle-password {
+            position: absolute; right: 1rem; top: 50%; transform: translateY(-50%);
+            cursor: pointer; color: var(--clay-text-muted); background: none; border: none; font-size: 1rem;
+        }
+
+        /* REGISTER */
+        .role-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.6rem; margin-bottom: 1.25rem; }
+        .role-option {
+            display: flex; flex-direction: column; align-items: center;
+            padding: 0.75rem 0.5rem; border-radius: var(--radius-md);
+            border: 2px solid var(--clay-border); cursor: pointer;
+            transition: all 0.2s; background: var(--clay-bg);
+            font-size: 0.75rem; font-weight: 700; color: var(--clay-text-muted); gap: 0.3rem;
+        }
+        .role-option:hover, .role-option.selected {
+            border-color: var(--clay-primary); background: var(--pastel-purple);
+            color: var(--clay-primary); box-shadow: var(--shadow-sm);
+        }
+        .role-emoji { font-size: 1.3rem; }
+        .step-indicator { display: flex; align-items: center; margin-bottom: 2rem; }
+        .step { flex: 1; text-align: center; }
+        .step-circle {
+            width: 36px; height: 36px; border-radius: 50%;
+            border: 2.5px solid var(--clay-border); background: var(--clay-bg);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 0.85rem; color: var(--clay-text-muted);
+            margin: 0 auto 0.3rem;
+        }
+        .step.active .step-circle { background: var(--clay-primary); border-color: var(--clay-primary); color: #fff; box-shadow: var(--shadow-sm); }
+        .step.completed .step-circle { background: var(--clay-success); border-color: var(--clay-success); color: #fff; }
+        .step-label { font-size: 0.7rem; font-weight: 700; color: var(--clay-text-muted); }
+        .step.active .step-label { color: var(--clay-primary); }
+        .step-line { flex: 0 0 40px; height: 2px; background: var(--clay-border); margin-bottom: 1.8rem; }
+
+        /* DASHBOARD */
+        .layout { display: flex; min-height: calc(100vh - 60px); }
+        .sidebar {
+            width: 240px; background: #fff; border-right: 2.5px solid var(--clay-border);
+            padding: 1.25rem 1rem; flex-shrink: 0;
+        }
+        .sidebar-logo {
+            padding: 0.5rem 0.75rem 1.25rem; font-size: 1.1rem; font-weight: 800;
+            color: var(--clay-primary); display: flex; align-items: center; gap: 0.5rem;
+            border-bottom: 2px dashed var(--clay-border); margin-bottom: 1rem;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 0.7rem; padding: 0.65rem 0.85rem;
+            border-radius: var(--radius-md); color: var(--clay-text-muted); font-weight: 600;
+            font-size: 0.88rem; text-decoration: none; transition: all 0.2s; margin-bottom: 0.2rem; cursor: pointer;
+        }
+        .nav-item:hover, .nav-item.active { background: var(--pastel-purple); color: var(--clay-primary); }
+        .section-title {
+            font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--clay-text-muted); padding: 0.5rem 0.85rem; margin-top: 0.5rem;
+        }
+        .main { flex: 1; padding: 1.75rem; background: var(--clay-bg); overflow-y: auto; }
+        .page-title { font-size: 1.4rem; font-weight: 800; color: var(--clay-text); }
+        .page-subtitle { color: var(--clay-text-muted); font-size: 0.875rem; margin-top: 0.2rem; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin: 1.5rem 0; }
+        .stat-card {
+            background: #fff; border-radius: var(--radius-lg); border: 2.5px solid var(--clay-border);
+            padding: 1.25rem; box-shadow: var(--shadow-card); display: flex; align-items: center; gap: 1rem;
+        }
+        .stat-icon {
+            width: 52px; height: 52px; border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0;
+        }
+        .stat-value { font-size: 1.7rem; font-weight: 800; line-height: 1; }
+        .stat-label { font-size: 0.75rem; font-weight: 600; color: var(--clay-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.2rem; }
+        .card {
+            background: #fff; border-radius: var(--radius-lg); border: 2.5px solid var(--clay-border);
+            padding: 1.25rem; box-shadow: var(--shadow-card);
+        }
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+        .card-title { font-size: 0.95rem; font-weight: 800; color: var(--clay-text); }
+        .badge {
+            display: inline-flex; align-items: center; padding: 0.2rem 0.6rem;
+            border-radius: var(--radius-full); font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+        }
+        .badge-success { background: var(--pastel-green); color: #1A9E74; }
+        .badge-warning { background: var(--pastel-yellow); color: #9C7400; }
+        .badge-danger  { background: var(--pastel-pink);   color: #D63939; }
+        .badge-info    { background: var(--pastel-blue);   color: #0B87A8; }
+        .badge-primary { background: var(--pastel-purple); color: var(--clay-primary); }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        thead th {
+            background: var(--pastel-purple); color: var(--clay-primary);
+            font-weight: 800; font-size: 0.75rem; text-transform: uppercase;
+            letter-spacing: 0.5px; padding: 0.75rem 1rem;
+        }
+        thead th:first-child { border-radius: var(--radius-md) 0 0 0; }
+        thead th:last-child  { border-radius: 0 var(--radius-md) 0 0; }
+        tbody tr:hover { background: var(--clay-bg); }
+        tbody td { padding: 0.8rem 1rem; border-bottom: 1.5px solid var(--clay-border); font-weight: 500; font-size: 0.88rem; }
+        .grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 1rem; }
+        .avatar {
+            width: 34px; height: 34px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; font-weight: 800; color: #fff; flex-shrink: 0;
+        }
+        .btn-sm {
+            padding: 0.3rem 0.8rem; border-radius: var(--radius-full); font-size: 0.75rem;
+            font-weight: 700; cursor: pointer; border: 2px solid transparent; font-family: 'Nunito', sans-serif;
+        }
+        .btn-primary-sm { background: var(--clay-primary); color: #fff; }
+        .btn-success-sm { background: var(--clay-success); color: #fff; }
+        .btn-danger-sm  { background: var(--clay-danger);  color: #fff; }
+        .notification-item {
+            display: flex; align-items: flex-start; gap: 0.75rem;
+            padding: 0.75rem; border-radius: var(--radius-md); border: 1.5px solid var(--clay-border);
+            margin-bottom: 0.6rem; background: var(--clay-bg);
+        }
+        .notif-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    </style>
+</head>
+<body>
+
+<!-- NAV -->
+<div class="preview-nav">
+    <span>🏥 HMS Preview</span>
+    <button class="tab-btn active" onclick="showTab('login', this)">Login</button>
+    <button class="tab-btn" onclick="showTab('register', this)">Register</button>
+    <button class="tab-btn" onclick="showTab('dashboard', this)">Admin Dashboard</button>
+    <button class="tab-btn" onclick="showTab('doctor', this)">Doctor Dashboard</button>
+    <button class="tab-btn" onclick="showTab('patient', this)">Patient Dashboard</button>
+</div>
+
+<!-- LOGIN -->
+<div class="tab-content active" id="tab-login">
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            <div class="auth-logo">
+                <div class="auth-logo-icon">🏥</div>
+                <div class="auth-title">Welcome Back</div>
+                <div class="auth-subtitle">Sign in to your HMS account</div>
+            </div>
+            <div class="form-group">
+                <label class="clay-label"><i class="fa fa-user"></i> Username or Email</label>
+                <input type="text" class="clay-input" placeholder="Enter username or email" value="dr.sharma"/>
+            </div>
+            <div class="form-group">
+                <label class="clay-label"><i class="fa fa-lock"></i> Password</label>
+                <div class="password-wrapper">
+                    <input type="password" class="clay-input" placeholder="Enter your password" value="password123"/>
+                    <button class="toggle-password"><i class="fa fa-eye"></i></button>
+                </div>
+            </div>
+            <div class="remember-row">
+                <label class="clay-checkbox">
+                    <input type="checkbox" checked/>
+                    <span>Remember me</span>
+                </label>
+                <a href="#" class="forgot-link">Forgot password?</a>
+            </div>
+            <button class="clay-btn clay-btn-primary clay-btn-block clay-btn-lg">
+                <i class="fa fa-right-to-bracket"></i> Sign In
+            </button>
+            <div class="register-prompt">
+                Don't have an account? <a href="#">Create one here</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- REGISTER -->
+<div class="tab-content" id="tab-register">
+    <div class="auth-wrapper">
+        <div class="auth-card" style="max-width:580px;">
+            <div class="auth-logo">
+                <div class="auth-logo-icon">🏥</div>
+                <div class="auth-title">Create Account</div>
+                <div class="auth-subtitle">Join the Hospital Management System</div>
+            </div>
+            <div class="step-indicator">
+                <div class="step active"><div class="step-circle">1</div><div class="step-label">Role</div></div>
+                <div class="step-line"></div>
+                <div class="step"><div class="step-circle">2</div><div class="step-label">Info</div></div>
+                <div class="step-line"></div>
+                <div class="step"><div class="step-circle">3</div><div class="step-label">Account</div></div>
+            </div>
+            <div style="font-weight:700; color:var(--clay-text); margin-bottom:0.75rem;">I am a...</div>
+            <div class="role-grid">
+                <div class="role-option selected" onclick="sel(this)"><span class="role-emoji">🧑‍⚕️</span>Patient</div>
+                <div class="role-option" onclick="sel(this)"><span class="role-emoji">👨‍⚕️</span>Doctor</div>
+                <div class="role-option" onclick="sel(this)"><span class="role-emoji">👩‍⚕️</span>Hospital Nurse</div>
+                <div class="role-option" onclick="sel(this)"><span class="role-emoji">🏠</span>Home Nurse</div>
+                <div class="role-option" onclick="sel(this)"><span class="role-emoji">🩸</span>Blood Donor</div>
+                <div class="role-option" onclick="sel(this)"><span class="role-emoji">💗</span>Organ Donor</div>
+                <div class="role-option" onclick="sel(this)"><span class="role-emoji">💊</span>Medical Shop</div>
+                <div class="role-option" onclick="sel(this)"><span class="role-emoji">🔬</span>Diagnostics</div>
+                <div class="role-option" onclick="sel(this)"><span class="role-emoji">🚑</span>Ambulance</div>
+            </div>
+            <button class="clay-btn clay-btn-primary clay-btn-block clay-btn-lg">
+                Continue <i class="fa fa-arrow-right"></i>
+            </button>
+            <div class="register-prompt">Already have an account? <a href="#">Sign in here</a></div>
+        </div>
+    </div>
+</div>
+
+<!-- ADMIN DASHBOARD -->
+<div class="tab-content" id="tab-dashboard">
+    <div class="layout">
+        <div class="sidebar">
+            <div class="sidebar-logo">🏥 <span>MediChain</span></div>
+            <div class="section-title">Main</div>
+            <div class="nav-item active">📊 Dashboard</div>
+            <div class="nav-item">👨‍⚕️ Doctors</div>
+            <div class="nav-item">🧑‍⚕️ Patients</div>
+            <div class="nav-item">🏢 Departments</div>
+            <div class="section-title">Approvals</div>
+            <div class="nav-item">✅ Pending Approvals <span class="badge badge-danger" style="margin-left:auto;">5</span></div>
+            <div class="nav-item">💊 Medical Shops</div>
+            <div class="nav-item">🔬 Diagnostics</div>
+            <div class="nav-item">🏠 Nurses</div>
+            <div class="section-title">Operations</div>
+            <div class="nav-item">🩸 Blood Bank</div>
+            <div class="nav-item">🚑 Ambulance</div>
+            <div class="nav-item">💰 Billing</div>
+            <div class="section-title">System</div>
+            <div class="nav-item">📋 Audit Logs</div>
+            <div class="nav-item">📈 Reports</div>
+            <div class="nav-item">⚙️ Settings</div>
+        </div>
+        <div class="main">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem;">
+                <div>
+                    <div class="page-title">Good afternoon, Admin 👋</div>
+                    <div class="page-subtitle">Hospital chain overview — March 15, 2026</div>
+                </div>
+                <div style="display:flex; gap:0.75rem; align-items:center;">
+                    <div style="position:relative; cursor:pointer;">
+                        <div style="width:40px;height:40px;background:var(--pastel-purple);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;border:2px solid var(--clay-border);">🔔</div>
+                        <div style="position:absolute;top:-4px;right:-4px;width:18px;height:18px;background:var(--clay-danger);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:800;color:#fff;">7</div>
+                    </div>
+                    <div style="width:40px;height:40px;background:var(--clay-primary);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;color:#fff;font-weight:800;">A</div>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--pastel-purple);">👨‍⚕️</div>
+                    <div><div class="stat-value">124</div><div class="stat-label">Total Doctors</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--pastel-blue);">🧑‍⚕️</div>
+                    <div><div class="stat-value">2,841</div><div class="stat-label">Patients</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--pastel-green);">📅</div>
+                    <div><div class="stat-value">48</div><div class="stat-label">Today's Appts</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--pastel-yellow);">💰</div>
+                    <div><div class="stat-value">₹1.2L</div><div class="stat-label">Today's Revenue</div></div>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-bottom:1rem;">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">⏳ Pending Approvals</div>
+                        <span class="badge badge-warning">5 pending</span>
+                    </div>
+                    <table>
+                        <thead><tr><th>Name</th><th>Role</th><th>Date</th><th>Action</th></tr></thead>
+                        <tbody>
+                            <tr><td><div style="display:flex;align-items:center;gap:0.5rem;"><div class="avatar" style="background:#6C63FF;">R</div>Dr. Ramesh K.</div></td><td><span class="badge badge-primary">Doctor</span></td><td>Mar 14</td><td><button class="btn-sm btn-success-sm">✓ Approve</button></td></tr>
+                            <tr><td><div style="display:flex;align-items:center;gap:0.5rem;"><div class="avatar" style="background:#FF6584;">M</div>MedPlus Shop</div></td><td><span class="badge badge-info">Med Shop</span></td><td>Mar 13</td><td><button class="btn-sm btn-success-sm">✓ Approve</button></td></tr>
+                            <tr><td><div style="display:flex;align-items:center;gap:0.5rem;"><div class="avatar" style="background:#43D9A2;">P</div>Priya (Nurse)</div></td><td><span class="badge badge-warning">Ind. Nurse</span></td><td>Mar 12</td><td><button class="btn-sm btn-success-sm">✓ Approve</button></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🩸 Blood Bank Status</div>
+                        <span class="badge badge-success">Updated today</span>
+                    </div>
+                    <table>
+                        <thead><tr><th>Blood Type</th><th>Units</th><th>Status</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>A+</strong></td><td>45 units</td><td><span class="badge badge-success">Sufficient</span></td></tr>
+                            <tr><td><strong>B+</strong></td><td>12 units</td><td><span class="badge badge-warning">Low</span></td></tr>
+                            <tr><td><strong>O-</strong></td><td>4 units</td><td><span class="badge badge-danger">Critical</span></td></tr>
+                            <tr><td><strong>AB+</strong></td><td>28 units</td><td><span class="badge badge-success">Sufficient</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📅 Today's Appointments</div>
+                    <button class="clay-btn clay-btn-primary" style="padding:0.4rem 1rem;font-size:0.8rem;">View All</button>
+                </div>
+                <table>
+                    <thead><tr><th>#</th><th>Patient</th><th>Doctor</th><th>Time</th><th>Type</th><th>Status</th></tr></thead>
+                    <tbody>
+                        <tr><td>#1042</td><td>Kavya M.</td><td>Dr. Sharma</td><td>10:00 AM</td><td>Consultation</td><td><span class="badge badge-success">Confirmed</span></td></tr>
+                        <tr><td>#1043</td><td>Ravi K.</td><td>Dr. Patel</td><td>11:30 AM</td><td>Follow-up</td><td><span class="badge badge-warning">Pending</span></td></tr>
+                        <tr><td>#1044</td><td>Anjali S.</td><td>Dr. Mehta</td><td>02:00 PM</td><td>Consultation</td><td><span class="badge badge-success">Confirmed</span></td></tr>
+                        <tr><td>#1045</td><td>Mohan R.</td><td>Dr. Sharma</td><td>03:30 PM</td><td>Emergency</td><td><span class="badge badge-danger">Urgent</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DOCTOR DASHBOARD -->
+<div class="tab-content" id="tab-doctor">
+    <div class="layout">
+        <div class="sidebar">
+            <div class="sidebar-logo">🏥 <span>MediChain</span></div>
+            <div class="section-title">My Practice</div>
+            <div class="nav-item active">📊 Dashboard</div>
+            <div class="nav-item">📅 My Schedule</div>
+            <div class="nav-item">🕐 Manage Slots</div>
+            <div class="nav-item">👥 My Patients</div>
+            <div class="nav-item">📋 Appointments <span class="badge badge-warning" style="margin-left:auto;">3</span></div>
+            <div class="section-title">Records</div>
+            <div class="nav-item">📝 Medical Records</div>
+            <div class="nav-item">💊 Prescriptions</div>
+            <div class="nav-item">🔬 Lab Orders</div>
+            <div class="section-title">Account</div>
+            <div class="nav-item">👤 My Profile</div>
+            <div class="nav-item">⭐ Reviews</div>
+            <div class="nav-item">🚪 Logout</div>
+        </div>
+        <div class="main">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem;">
+                <div>
+                    <div class="page-title">Dr. Arjun Sharma 👨‍⚕️</div>
+                    <div class="page-subtitle">Cardiology · MBBS, MD · ⭐ 4.8 (128 reviews)</div>
+                </div>
+                <div style="display:flex; gap:0.5rem;">
+                    <span class="badge badge-success" style="padding:0.4rem 1rem; font-size:0.8rem;">🟢 Available</span>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--pastel-blue);">📅</div>
+                    <div><div class="stat-value">8</div><div class="stat-label">Today's Appts</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--pastel-yellow);">⏳</div>
+                    <div><div class="stat-value">3</div><div class="stat-label">Pending Confirm</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--pastel-green);">✅</div>
+                    <div><div class="stat-value">142</div><div class="stat-label">Completed</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--pastel-purple);">👥</div>
+                    <div><div class="stat-value">89</div><div class="stat-label">Total Patients</div></div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">⏳ Appointment Requests</div>
+                        <span class="badge badge-warning">3 new</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                        <div style="padding:0.85rem;border-radius:var(--radius-md);border:2px solid var(--clay-border);background:var(--clay-bg);">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+                                <strong>Kavya Menon</strong>
+                                <span class="badge badge-info">Consultation</span>
+                            </div>
+                            <div style="font-size:0.82rem;color:var(--clay-text-muted);margin-bottom:0.6rem;">📅 Mar 16 · 10:00 AM &nbsp;|&nbsp; Chest pain, shortness of breath</div>
+                            <div style="display:flex;gap:0.5rem;">
+                                <button class="btn-sm btn-success-sm">✓ Confirm</button>
+                                <button class="btn-sm btn-danger-sm">✗ Reject</button>
+                            </div>
+                        </div>
+                        <div style="padding:0.85rem;border-radius:var(--radius-md);border:2px solid var(--clay-border);background:var(--clay-bg);">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+                                <strong>Ravi Kumar</strong>
+                                <span class="badge badge-warning">Follow-up</span>
+                            </div>
+                            <div style="font-size:0.82rem;color:var(--clay-text-muted);margin-bottom:0.6rem;">📅 Mar 16 · 02:30 PM &nbsp;|&nbsp; Post-surgery follow up</div>
+                            <div style="display:flex;gap:0.5rem;">
+                                <button class="btn-sm btn-success-sm">✓ Confirm</button>
+                                <button class="btn-sm btn-danger-sm">✗ Reject</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🕐 Today's Slot Calendar</div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;">
+                        <div style="padding:0.6rem;border-radius:var(--radius-md);text-align:center;background:var(--pastel-green);border:2px solid #43D9A2;font-size:0.78rem;font-weight:700;color:#1A9E74;">9:00 AM<br><small>Available</small></div>
+                        <div style="padding:0.6rem;border-radius:var(--radius-md);text-align:center;background:var(--pastel-yellow);border:2px solid var(--clay-warning);font-size:0.78rem;font-weight:700;color:#9C7400;">10:00 AM<br><small>Booked</small></div>
+                        <div style="padding:0.6rem;border-radius:var(--radius-md);text-align:center;background:var(--pastel-green);border:2px solid #43D9A2;font-size:0.78rem;font-weight:700;color:#1A9E74;">11:00 AM<br><small>Available</small></div>
+                        <div style="padding:0.6rem;border-radius:var(--radius-md);text-align:center;background:var(--pastel-yellow);border:2px solid var(--clay-warning);font-size:0.78rem;font-weight:700;color:#9C7400;">12:00 PM<br><small>Booked</small></div>
+                        <div style="padding:0.6rem;border-radius:var(--radius-md);text-align:center;background:var(--pastel-pink);border:2px solid var(--clay-danger);font-size:0.78rem;font-weight:700;color:#D63939;">02:00 PM<br><small>Blocked</small></div>
+                        <div style="padding:0.6rem;border-radius:var(--radius-md);text-align:center;background:var(--pastel-green);border:2px solid #43D9A2;font-size:0.78rem;font-weight:700;color:#1A9E74;">03:00 PM<br><small>Available</small></div>
+                    </div>
+                    <button class="clay-btn clay-btn-secondary" style="width:100%;justify-content:center;margin-top:0.85rem;padding:0.5rem;">
+                        <i class="fa fa-calendar"></i> Manage Slots
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PATIENT DASHBOARD -->
+<div class="tab-content" id="tab-patient">
+    <div class="layout">
+        <div class="sidebar">
+            <div class="sidebar-logo">🏥 <span>MediChain</span></div>
+            <div class="section-title">My Health</div>
+            <div class="nav-item active">🏠 Dashboard</div>
+            <div class="nav-item">📅 Book Appointment</div>
+            <div class="nav-item">📋 My Appointments</div>
+            <div class="nav-item">📝 Medical Records</div>
+            <div class="nav-item">💊 Prescriptions</div>
+            <div class="section-title">Services</div>
+            <div class="nav-item">🔬 Lab Tests</div>
+            <div class="nav-item">💊 Order Medicines</div>
+            <div class="nav-item">🏠 Home Nurse</div>
+            <div class="nav-item">🚑 Ambulance</div>
+            <div class="section-title">Finance</div>
+            <div class="nav-item">💰 Bills & Payments</div>
+            <div class="section-title">Account</div>
+            <div class="nav-item">👤 My Profile</div>
+            <div class="nav-item">🚪 Logout</div>
+        </div>
+        <div class="main">
+            <div style="margin-bottom:1.5rem;">
+                <div class="page-title">Hello, Kavya! 🌸</div>
+                <div class="page-subtitle">Your health summary · March 15, 2026</div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--pastel-purple);">📅</div>
+                    <div><div class="stat-value">2</div><div class="stat-label">Upcoming Appts</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--pastel-green);">💊</div>
+                    <div><div class="stat-value">3</div><div class="stat-label">Active Prescriptions</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--pastel-blue);">🔬</div>
+                    <div><div class="stat-value">1</div><div class="stat-label">Pending Lab Results</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--pastel-pink);">💰</div>
+                    <div><div class="stat-value">₹850</div><div class="stat-label">Due Amount</div></div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📅 Upcoming Appointments</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                        <div style="padding:0.85rem;border-radius:var(--radius-md);border:2px solid var(--clay-primary);background:var(--pastel-purple);">
+                            <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">
+                                <strong style="color:var(--clay-primary);">Dr. Arjun Sharma</strong>
+                                <span class="badge badge-success">Confirmed</span>
+                            </div>
+                            <div style="font-size:0.82rem;color:var(--clay-text-muted);">🏥 Cardiology · March 16 · 10:00 AM</div>
+                            <div style="font-size:0.82rem;margin-top:0.4rem;color:var(--clay-text-muted);">Chest pain follow-up consultation</div>
+                        </div>
+                        <div style="padding:0.85rem;border-radius:var(--radius-md);border:2px solid var(--clay-border);background:var(--clay-bg);">
+                            <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">
+                                <strong>Dr. Priya Mehta</strong>
+                                <span class="badge badge-warning">Pending</span>
+                            </div>
+                            <div style="font-size:0.82rem;color:var(--clay-text-muted);">🏥 General Medicine · March 20 · 02:00 PM</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🔔 Notifications</div>
+                    </div>
+                    <div class="notification-item">
+                        <div class="notif-icon" style="background:var(--pastel-green);">✅</div>
+                        <div><div style="font-weight:700;font-size:0.85rem;">Appointment Confirmed</div><div style="font-size:0.78rem;color:var(--clay-text-muted);">Dr. Sharma confirmed your slot for Mar 16</div></div>
+                    </div>
+                    <div class="notification-item">
+                        <div class="notif-icon" style="background:var(--pastel-blue);">🔬</div>
+                        <div><div style="font-weight:700;font-size:0.85rem;">Lab Results Ready</div><div style="font-size:0.78rem;color:var(--clay-text-muted);">Your CBC report is available. View now.</div></div>
+                    </div>
+                    <div class="notification-item">
+                        <div class="notif-icon" style="background:var(--pastel-yellow);">💊</div>
+                        <div><div style="font-weight:700;font-size:0.85rem;">Prescription Due</div><div style="font-size:0.78rem;color:var(--clay-text-muted);">Refill reminder: Atorvastatin 10mg</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showTab(id, btn) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + id).classList.add('active');
+        btn.classList.add('active');
+    }
+    function sel(el) {
+        document.querySelectorAll('.role-option').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
+    }
+</script>
+</body>
+</html>

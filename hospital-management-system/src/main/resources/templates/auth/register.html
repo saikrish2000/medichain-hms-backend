@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Register — HMS</title>
+    <link rel="stylesheet" th:href="@{/css/claymorphism.css}"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <style>
+        .auth-card { max-width: 620px; }
+        .step-indicator {
+            display: flex; align-items: center; gap: 0; margin-bottom: 2rem;
+        }
+        .step {
+            flex: 1; text-align: center; position: relative;
+        }
+        .step-circle {
+            width: 36px; height: 36px; border-radius: 50%;
+            border: 2.5px solid var(--clay-border);
+            background: var(--clay-bg);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 0.85rem;
+            color: var(--clay-text-muted);
+            margin: 0 auto 0.3rem;
+            transition: all 0.3s;
+        }
+        .step.active .step-circle {
+            background: var(--clay-primary); border-color: var(--clay-primary); color: #fff;
+            box-shadow: var(--shadow-sm);
+        }
+        .step.completed .step-circle {
+            background: var(--clay-success); border-color: var(--clay-success); color: #fff;
+        }
+        .step-label { font-size: 0.7rem; font-weight: 700; color: var(--clay-text-muted); }
+        .step.active .step-label { color: var(--clay-primary); }
+        .step-line {
+            flex: 0 0 40px; height: 2px;
+            background: var(--clay-border); margin-bottom: 1.8rem;
+        }
+        .form-step { display: none; }
+        .form-step.active { display: block; }
+        .password-wrapper { position: relative; }
+        .toggle-password {
+            position: absolute; right: 1rem; top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer; color: var(--clay-text-muted);
+            background: none; border: none;
+        }
+        .strength-bar {
+            height: 4px; border-radius: 2px;
+            background: var(--clay-border); margin-top: 0.4rem; overflow: hidden;
+        }
+        .strength-fill { height: 100%; width: 0%; transition: width 0.3s, background 0.3s; border-radius: 2px; }
+        .login-link { text-align: center; margin-top: 1.5rem; font-size: 0.85rem; color: var(--clay-text-muted); }
+        .login-link a { color: var(--clay-primary); font-weight: 700; text-decoration: none; }
+    </style>
+</head>
+<body>
+<div class="auth-wrapper" style="padding: 2rem 1rem;">
+    <div class="auth-card">
+
+        <!-- Header -->
+        <div class="auth-logo">
+            <div class="auth-logo-icon">🏥</div>
+            <div class="auth-title">Create Account</div>
+            <div class="auth-subtitle">Join the Hospital Management System</div>
+        </div>
+
+        <!-- Alerts -->
+        <div th:if="${error}" class="clay-alert clay-alert-danger">
+            <i class="fa fa-circle-exclamation"></i>
+            <span th:text="${error}"></span>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step active" id="step-ind-1">
+                <div class="step-circle">1</div>
+                <div class="step-label">Role</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" id="step-ind-2">
+                <div class="step-circle">2</div>
+                <div class="step-label">Info</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" id="step-ind-3">
+                <div class="step-circle">3</div>
+                <div class="step-label">Account</div>
+            </div>
+        </div>
+
+        <form th:action="@{/register}" th:object="${registerRequest}" method="post" id="registerForm">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <input type="hidden" th:field="*{role}" id="selectedRole"/>
+
+            <!-- STEP 1: Role Selection -->
+            <div class="form-step active" id="step-1">
+                <div class="mb-2" style="font-weight:700; color:var(--clay-text);">
+                    I am a...
+                </div>
+                <div class="role-grid">
+                    <div class="role-option" onclick="selectRole('PATIENT', this)">
+                        <span class="role-emoji">🧑‍⚕️</span> Patient
+                    </div>
+                    <div class="role-option" onclick="selectRole('DOCTOR', this)">
+                        <span class="role-emoji">👨‍⚕️</span> Doctor
+                    </div>
+                    <div class="role-option" onclick="selectRole('NURSE', this)">
+                        <span class="role-emoji">👩‍⚕️</span> Hospital Nurse
+                    </div>
+                    <div class="role-option" onclick="selectRole('INDEPENDENT_NURSE', this)">
+                        <span class="role-emoji">🏠</span> Home Nurse
+                    </div>
+                    <div class="role-option" onclick="selectRole('BLOOD_DONOR', this)">
+                        <span class="role-emoji">🩸</span> Blood Donor
+                    </div>
+                    <div class="role-option" onclick="selectRole('ORGAN_DONOR', this)">
+                        <span class="role-emoji">💗</span> Organ Donor
+                    </div>
+                    <div class="role-option" onclick="selectRole('MEDICAL_SHOP_OWNER', this)">
+                        <span class="role-emoji">💊</span> Medical Shop
+                    </div>
+                    <div class="role-option" onclick="selectRole('DIAGNOSTIC_CENTER_OWNER', this)">
+                        <span class="role-emoji">🔬</span> Diagnostics
+                    </div>
+                    <div class="role-option" onclick="selectRole('AMBULANCE_OPERATOR', this)">
+                        <span class="role-emoji">🚑</span> Ambulance
+                    </div>
+                </div>
+                <div class="invalid-feedback" th:if="${#fields.hasErrors('role')}" th:errors="*{role}"></div>
+
+                <button type="button" class="clay-btn clay-btn-primary clay-btn-block clay-btn-lg mt-2"
+                        onclick="nextStep(2)">
+                    Continue <i class="fa fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- STEP 2: Personal Info -->
+            <div class="form-step" id="step-2">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="clay-label">First Name</label>
+                        <input type="text" th:field="*{firstName}" class="clay-input"
+                               placeholder="John" required/>
+                        <div class="invalid-feedback"
+                             th:if="${#fields.hasErrors('firstName')}" th:errors="*{firstName}"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="clay-label">Last Name</label>
+                        <input type="text" th:field="*{lastName}" class="clay-input"
+                               placeholder="Doe" required/>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="clay-label">Phone Number</label>
+                    <input type="tel" th:field="*{phone}" class="clay-input"
+                           placeholder="10-digit mobile number" maxlength="10" required/>
+                    <div class="invalid-feedback"
+                         th:if="${#fields.hasErrors('phone')}" th:errors="*{phone}"></div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="clay-label">Date of Birth</label>
+                        <input type="date" th:field="*{dateOfBirth}" class="clay-input"/>
+                    </div>
+                    <div class="form-group">
+                        <label class="clay-label">Gender</label>
+                        <select th:field="*{gender}" class="clay-input clay-select">
+                            <option value="">Select gender</option>
+                            <option value="MALE">Male</option>
+                            <option value="FEMALE">Female</option>
+                            <option value="OTHER">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="clay-label">Blood Group</label>
+                    <select th:field="*{bloodGroup}" class="clay-input clay-select">
+                        <option value="">Select blood group</option>
+                        <option value="A_POSITIVE">A+</option>
+                        <option value="A_NEGATIVE">A-</option>
+                        <option value="B_POSITIVE">B+</option>
+                        <option value="B_NEGATIVE">B-</option>
+                        <option value="AB_POSITIVE">AB+</option>
+                        <option value="AB_NEGATIVE">AB-</option>
+                        <option value="O_POSITIVE">O+</option>
+                        <option value="O_NEGATIVE">O-</option>
+                    </select>
+                </div>
+
+                <!-- Role-specific fields -->
+                <div id="licenseField" style="display:none;">
+                    <div class="form-group">
+                        <label class="clay-label">License Number</label>
+                        <input type="text" th:field="*{licenseNumber}" class="clay-input"
+                               placeholder="Medical license / registration number"/>
+                    </div>
+                </div>
+                <div id="shopNameField" style="display:none;">
+                    <div class="form-group">
+                        <label class="clay-label">Shop Name</label>
+                        <input type="text" th:field="*{shopName}" class="clay-input"
+                               placeholder="Your medical shop name"/>
+                    </div>
+                </div>
+                <div id="centerNameField" style="display:none;">
+                    <div class="form-group">
+                        <label class="clay-label">Diagnostic Center Name</label>
+                        <input type="text" th:field="*{centerName}" class="clay-input"
+                               placeholder="Your diagnostic center name"/>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 mt-2">
+                    <button type="button"
+                            class="clay-btn clay-btn-secondary clay-btn-lg"
+                            style="flex:1" onclick="prevStep(1)">
+                        <i class="fa fa-arrow-left"></i> Back
+                    </button>
+                    <button type="button"
+                            class="clay-btn clay-btn-primary clay-btn-lg"
+                            style="flex:2" onclick="nextStep(3)">
+                        Continue <i class="fa fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 3: Account Details -->
+            <div class="form-step" id="step-3">
+                <div class="form-group">
+                    <label class="clay-label">Username</label>
+                    <input type="text" th:field="*{username}" class="clay-input"
+                           placeholder="Choose a username" required/>
+                    <div class="invalid-feedback"
+                         th:if="${#fields.hasErrors('username')}" th:errors="*{username}"></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="clay-label">Email Address</label>
+                    <input type="email" th:field="*{email}" class="clay-input"
+                           placeholder="you@example.com" required/>
+                    <div class="invalid-feedback"
+                         th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="clay-label">Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" th:field="*{password}" id="regPassword"
+                               class="clay-input" placeholder="Min 8 chars, upper + lower + number"
+                               oninput="checkStrength(this.value)" required/>
+                        <button type="button" class="toggle-password" onclick="toggleRegPwd()">
+                            <i class="fa fa-eye" id="regEyeIcon"></i>
+                        </button>
+                    </div>
+                    <div class="strength-bar">
+                        <div class="strength-fill" id="strengthFill"></div>
+                    </div>
+                    <div class="invalid-feedback"
+                         th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="clay-label">Confirm Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" th:field="*{confirmPassword}" id="confirmPwd"
+                               class="clay-input" placeholder="Re-enter your password" required/>
+                    </div>
+                    <div class="invalid-feedback"
+                         th:if="${#fields.hasErrors('confirmPassword')}" th:errors="*{confirmPassword}"></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="clay-label">Preferred Language</label>
+                    <select th:field="*{preferredLanguage}" class="clay-input clay-select">
+                        <option value="en">English</option>
+                        <option value="hi">हिन्दी (Hindi)</option>
+                        <option value="te">తెలుగు (Telugu)</option>
+                        <option value="ta">தமிழ் (Tamil)</option>
+                        <option value="kn">ಕನ್ನಡ (Kannada)</option>
+                        <option value="ml">മലയാളം (Malayalam)</option>
+                    </select>
+                </div>
+
+                <div class="flex gap-2 mt-2">
+                    <button type="button"
+                            class="clay-btn clay-btn-secondary clay-btn-lg"
+                            style="flex:1" onclick="prevStep(2)">
+                        <i class="fa fa-arrow-left"></i> Back
+                    </button>
+                    <button type="submit"
+                            class="clay-btn clay-btn-primary clay-btn-lg"
+                            style="flex:2">
+                        <i class="fa fa-user-plus"></i> Create Account
+                    </button>
+                </div>
+            </div>
+
+        </form>
+
+        <div class="login-link">
+            Already have an account? <a href="/login">Sign in here</a>
+        </div>
+
+    </div>
+</div>
+
+<script>
+let currentStep = 1;
+let selectedRole = '';
+
+function selectRole(role, el) {
+    document.querySelectorAll('.role-option').forEach(e => e.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedRole = role;
+    document.getElementById('selectedRole').value = role;
+
+    // Show/hide role-specific fields on step 2
+    document.getElementById('licenseField').style.display =
+        ['DOCTOR','NURSE','INDEPENDENT_NURSE'].includes(role) ? 'block' : 'none';
+    document.getElementById('shopNameField').style.display =
+        role === 'MEDICAL_SHOP_OWNER' ? 'block' : 'none';
+    document.getElementById('centerNameField').style.display =
+        role === 'DIAGNOSTIC_CENTER_OWNER' ? 'block' : 'none';
+}
+
+function nextStep(step) {
+    if (step === 2 && !selectedRole) {
+        alert('Please select your role to continue.');
+        return;
+    }
+    goToStep(step);
+}
+
+function prevStep(step) { goToStep(step); }
+
+function goToStep(step) {
+    document.querySelectorAll('.form-step').forEach(s => s.classList.remove('active'));
+    document.getElementById('step-' + step).classList.add('active');
+
+    for (let i = 1; i <= 3; i++) {
+        const ind = document.getElementById('step-ind-' + i);
+        ind.classList.remove('active', 'completed');
+        if (i < step)      ind.classList.add('completed');
+        else if (i === step) ind.classList.add('active');
+    }
+    currentStep = step;
+}
+
+function checkStrength(value) {
+    const fill = document.getElementById('strengthFill');
+    let score = 0;
+    if (value.length >= 8)            score++;
+    if (/[A-Z]/.test(value))          score++;
+    if (/[a-z]/.test(value))          score++;
+    if (/\d/.test(value))             score++;
+    if (/[^A-Za-z0-9]/.test(value))  score++;
+
+    const colors = ['#FF5C5C','#FF8C00','#FFBE0B','#43D9A2','#6C63FF'];
+    const widths = ['20%','40%','60%','80%','100%'];
+    fill.style.width  = widths[score - 1] || '0%';
+    fill.style.background = colors[score - 1] || '#E2E8FF';
+}
+
+function toggleRegPwd() {
+    const pwd = document.getElementById('regPassword');
+    const icon = document.getElementById('regEyeIcon');
+    pwd.type = pwd.type === 'password' ? 'text' : 'password';
+    icon.className = pwd.type === 'password' ? 'fa fa-eye' : 'fa fa-eye-slash';
+}
+</script>
+</body>
+</html>
