@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head><title>Blood Bank Dashboard</title></head>
+
+<th:block layout:fragment="sidebar-nav">
+    <div class="nav-section-title">Blood Bank</div>
+    <a th:href="@{/blood-bank/dashboard}"  class="nav-link active"><span class="nav-icon">🩸</span> Dashboard</a>
+    <a th:href="@{/blood-bank/inventory}"  class="nav-link"><span class="nav-icon">📦</span> Inventory</a>
+    <a th:href="@{/blood-bank/requests}"   class="nav-link"><span class="nav-icon">📋</span> Requests</a>
+    <a th:href="@{/blood-bank/donations}"  class="nav-link"><span class="nav-icon">❤️</span> Donations</a>
+</th:block>
+<th:block layout:fragment="topbar-title">Blood Bank</th:block>
+
+<th:block layout:fragment="content">
+<style>
+    .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.75rem; }
+    .stat-card { background:#fff; border-radius:var(--radius-lg); border:2.5px solid var(--clay-border); padding:1.25rem 1.5rem; box-shadow:var(--shadow-card); display:flex; align-items:center; gap:1rem; }
+    .stat-icon { width:50px; height:50px; border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; }
+    .stat-value { font-size:1.8rem; font-weight:800; line-height:1; }
+    .stat-label { font-size:0.72rem; font-weight:700; color:var(--clay-text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-top:0.15rem; }
+    .grid-2 { display:grid; grid-template-columns:1.3fr 1fr; gap:1.25rem; }
+    .card { background:#fff; border-radius:var(--radius-lg); border:2.5px solid var(--clay-border); box-shadow:var(--shadow-card); overflow:hidden; }
+    .card-header { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:2px solid var(--clay-border); }
+    .card-title  { font-size:0.9rem; font-weight:800; }
+    /* Blood group chips */
+    .blood-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:0.75rem; padding:1.25rem; }
+    .blood-chip { border-radius:var(--radius-lg); padding:1rem 0.5rem; text-align:center; border:2.5px solid var(--clay-border); }
+    .blood-chip .bg-label { font-size:1.3rem; font-weight:800; color:var(--clay-danger); }
+    .blood-chip .units { font-size:1.2rem; font-weight:800; color:var(--clay-text); margin-top:0.25rem; }
+    .blood-chip .unit-label { font-size:0.65rem; font-weight:700; color:var(--clay-text-muted); text-transform:uppercase; }
+    .blood-chip.low { background:var(--pastel-pink); border-color:var(--clay-danger); }
+    .blood-chip.ok  { background:var(--pastel-green); border-color:var(--clay-success); }
+    .blood-chip.med { background:var(--pastel-yellow); border-color:var(--clay-warning); }
+    .req-row { display:flex; align-items:center; justify-content:space-between; padding:0.85rem 1.25rem; border-bottom:1.5px solid var(--clay-border); font-size:0.875rem; }
+    .req-row:last-child { border-bottom:none; }
+    .badge { display:inline-flex; padding:0.2rem 0.65rem; border-radius:var(--radius-full); font-size:0.68rem; font-weight:800; text-transform:uppercase; }
+    .badge-pending  { background:var(--pastel-yellow); color:#9C7400; }
+    .badge-emergency{ background:var(--pastel-pink);   color:#D63939; }
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:#fff; border-radius:var(--radius-xl); border:2.5px solid var(--clay-border); box-shadow:12px 12px 0px #D0CEFF; padding:2rem; width:100%; max-width:440px; }
+</style>
+
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem;">
+    <div>
+        <h1 style="font-size:1.4rem; font-weight:800;">Blood Bank 🩸</h1>
+        <p style="color:var(--clay-text-muted); font-size:0.875rem;" th:text="${bank.name}">Blood Bank Name</p>
+    </div>
+    <div style="display:flex; gap:0.6rem;">
+        <a th:href="@{/blood-bank/requests}" class="clay-btn clay-btn-primary" style="padding:0.5rem 1.1rem; font-size:0.82rem;">
+            📋 Requests
+        </a>
+        <a th:href="@{/blood-bank/inventory}" class="clay-btn clay-btn-secondary" style="padding:0.5rem 1.1rem; font-size:0.82rem;">
+            📦 Inventory
+        </a>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-icon" style="background:var(--pastel-yellow);">⏳</div>
+        <div><div class="stat-value" th:text="${stats.pending}">0</div><div class="stat-label">Pending Requests</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background:var(--pastel-green);">✅</div>
+        <div><div class="stat-value" th:text="${stats.approved}">0</div><div class="stat-label">Approved Today</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background:var(--pastel-pink);">❤️</div>
+        <div><div class="stat-value" th:text="${stats.donations}">0</div><div class="stat-label">Pending Donations</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background:var(--pastel-orange);">⚠️</div>
+        <div><div class="stat-value" th:text="${stats.lowStock}">0</div><div class="stat-label">Low Stock Alerts</div></div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Inventory Overview -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">🩸 Blood Stock Overview</div>
+            <a th:href="@{/blood-bank/inventory}" style="font-size:0.78rem; font-weight:700; color:var(--clay-primary); text-decoration:none;">Manage →</a>
+        </div>
+        <div class="blood-grid">
+            <div th:each="item : ${inventory}"
+                 class="blood-chip"
+                 th:classappend="${item.unitsAvailable == 0} ? 'low' : (${item.isBelowThreshold()} ? 'med' : 'ok')">
+                <div class="bg-label" th:text="${item.bloodGroup}">A+</div>
+                <div class="units" th:text="${item.unitsAvailable}">0</div>
+                <div class="unit-label">units</div>
+                <div th:if="${item.isBelowThreshold()}"
+                     style="font-size:0.6rem; color:var(--clay-danger); font-weight:800; margin-top:0.2rem;">⚠ LOW</div>
+            </div>
+            <div th:if="${#lists.isEmpty(inventory)}"
+                 style="grid-column:span 4; padding:2rem; text-align:center; color:var(--clay-text-muted); font-weight:600;">
+                No inventory data. Set up blood stock first.
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Requests -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">📋 Pending Requests</div>
+            <a th:href="@{/blood-bank/requests}" style="font-size:0.78rem; font-weight:700; color:var(--clay-primary); text-decoration:none;">View all →</a>
+        </div>
+        <div th:if="${pending.isEmpty()}"
+             style="padding:2.5rem; text-align:center; color:var(--clay-text-muted); font-weight:600;">
+            🎉 No pending requests
+        </div>
+        <div th:each="req : ${pending}" class="req-row">
+            <div>
+                <div style="font-weight:700; font-size:0.875rem;"
+                     th:text="${req.patientName ?: 'Anonymous'}">Patient</div>
+                <div style="font-size:0.75rem; color:var(--clay-text-muted);"
+                     th:text="${req.bloodGroup + ' · ' + req.unitsRequested + ' units'}">—</div>
+            </div>
+            <div style="display:flex; gap:0.4rem; align-items:center;">
+                <span class="badge" th:classappend="${req.isEmergency} ? 'badge-emergency' : 'badge-pending'"
+                      th:text="${req.isEmergency} ? '🚨 EMERGENCY' : 'PENDING'">PENDING</span>
+                <button class="clay-btn clay-btn-success" style="padding:0.25rem 0.65rem; font-size:0.72rem;"
+                        th:onclick="'openApprove(' + ${req.id} + ', ' + ${req.unitsRequested} + ')'">✓</button>
+                <button class="clay-btn clay-btn-danger" style="padding:0.25rem 0.65rem; font-size:0.72rem;"
+                        th:onclick="'openReject(' + ${req.id} + ')'">✗</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Approve Modal -->
+<div class="modal-overlay" id="approveModal">
+    <div class="modal-box">
+        <div style="font-weight:800; font-size:1.1rem; color:var(--clay-success); margin-bottom:1rem;">✓ Approve Blood Request</div>
+        <form id="approveForm" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <div class="form-group">
+                <label class="clay-label">Units to Approve</label>
+                <input type="number" name="unitsApproved" id="approveUnits" class="clay-input" min="1" required/>
+            </div>
+            <div style="display:flex; gap:0.75rem;">
+                <button type="button" class="clay-btn clay-btn-secondary" style="flex:1; justify-content:center;"
+                        onclick="document.getElementById('approveModal').classList.remove('open')">Cancel</button>
+                <button type="submit" class="clay-btn" style="flex:1; justify-content:center; background:var(--clay-success); color:#fff; border-color:var(--clay-success);">Approve</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal-overlay" id="rejectModal">
+    <div class="modal-box">
+        <div style="font-weight:800; font-size:1.1rem; color:var(--clay-danger); margin-bottom:1rem;">✗ Reject Request</div>
+        <form id="rejectForm" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <div class="form-group">
+                <label class="clay-label">Reason</label>
+                <textarea name="reason" class="clay-input" rows="2" required style="resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex; gap:0.75rem;">
+                <button type="button" class="clay-btn clay-btn-secondary" style="flex:1; justify-content:center;"
+                        onclick="document.getElementById('rejectModal').classList.remove('open')">Cancel</button>
+                <button type="submit" class="clay-btn" style="flex:1; justify-content:center; background:var(--clay-danger); color:#fff; border-color:var(--clay-danger);">Reject</button>
+            </div>
+        </form>
+    </div>
+</div>
+</th:block>
+
+<th:block layout:fragment="scripts">
+<script>
+    function openApprove(id, units) {
+        document.getElementById('approveForm').action = '/blood-bank/requests/' + id + '/approve';
+        document.getElementById('approveUnits').value = units;
+        document.getElementById('approveModal').classList.add('open');
+    }
+    function openReject(id) {
+        document.getElementById('rejectForm').action = '/blood-bank/requests/' + id + '/reject';
+        document.getElementById('rejectModal').classList.add('open');
+    }
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+        m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+    });
+</script>
+</th:block>
+</html>

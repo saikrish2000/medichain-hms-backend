@@ -55,33 +55,59 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(auth -> auth
-                // Public pages
+                // ── Public pages ──────────────────────────
                 .requestMatchers(
                     "/", "/login", "/register", "/register/**",
                     "/forgot-password", "/reset-password",
                     "/verify-email", "/error"
                 ).permitAll()
-                // Static resources
+                // ── Static resources ──────────────────────
                 .requestMatchers(
                     "/css/**", "/js/**", "/images/**",
                     "/webjars/**", "/favicon.ico"
                 ).permitAll()
-                // Public API endpoints
+                // ── Public API ────────────────────────────
                 .requestMatchers("/api/auth/**").permitAll()
-                // WebSocket
+                // ── WebSocket ─────────────────────────────
                 .requestMatchers("/ws/**").permitAll()
-                // Role-based access
+
+                // ── ADMIN ─────────────────────────────────
                 .requestMatchers("/admin/**").hasRole("ADMIN")
+
+                // ── DOCTOR ────────────────────────────────
                 .requestMatchers("/doctor/**").hasRole("DOCTOR")
-                .requestMatchers("/nurse/**").hasAnyRole("NURSE", "INDEPENDENT_NURSE")
+
+                // ── APPOINTMENTS (shared: patient books, doctor manages) ──
+                .requestMatchers("/appointments/book/**").hasRole("PATIENT")
+                .requestMatchers("/appointments/my/**").hasRole("PATIENT")
+                .requestMatchers("/appointments/**").authenticated()
+
+                // ── PATIENT ───────────────────────────────
                 .requestMatchers("/patient/**").hasRole("PATIENT")
+
+                // ── NURSE ─────────────────────────────────
+                .requestMatchers("/nurse/**").hasAnyRole("NURSE", "INDEPENDENT_NURSE")
+
+                // ── BLOOD BANK ────────────────────────────
                 .requestMatchers("/blood-bank/**").hasRole("BLOOD_BANK_MANAGER")
+
+                // ── AMBULANCE ─────────────────────────────
                 .requestMatchers("/ambulance/**").hasRole("AMBULANCE_OPERATOR")
-                .requestMatchers("/pharmacy/**").hasRole("PHARMACIST")
-                .requestMatchers("/lab/**").hasAnyRole("LAB_TECHNICIAN", "PHLEBOTOMIST")
+
+                // ── PHARMACY ──────────────────────────────
+                .requestMatchers("/pharmacy/**").hasAnyRole("PHARMACIST", "DOCTOR", "NURSE")
+
+                // ── LAB ───────────────────────────────────
+                .requestMatchers("/lab/**").hasAnyRole("LAB_TECHNICIAN", "PHLEBOTOMIST", "DOCTOR")
+
+                // ── EXTERNAL SERVICES ─────────────────────
                 .requestMatchers("/medical-shop/**").hasRole("MEDICAL_SHOP_OWNER")
                 .requestMatchers("/diagnostic/**").hasRole("DIAGNOSTIC_CENTER_OWNER")
-                // All other requests need authentication
+
+                // ── BILLING ───────────────────────────────
+                .requestMatchers("/billing/**").authenticated()
+
+                // ── EVERYTHING ELSE ───────────────────────
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form.disable())

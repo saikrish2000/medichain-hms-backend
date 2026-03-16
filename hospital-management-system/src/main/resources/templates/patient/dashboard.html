@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head><title>Patient Dashboard</title></head>
+
+<th:block layout:fragment="sidebar-nav">
+    <div class="nav-section-title">Main</div>
+    <a th:href="@{/patient/dashboard}" class="nav-link active"><span class="nav-icon">📊</span> Dashboard</a>
+    <a th:href="@{/patient/profile}"   class="nav-link"><span class="nav-icon">👤</span> My Profile</a>
+    <div class="nav-section-title">Appointments</div>
+    <a th:href="@{/appointments/book}" class="nav-link"><span class="nav-icon">📅</span> Book Appointment</a>
+    <a th:href="@{/appointments/my}"   class="nav-link"><span class="nav-icon">📋</span> My Appointments</a>
+    <div class="nav-section-title">Health</div>
+    <a th:href="@{/patient/records}"   class="nav-link"><span class="nav-icon">🏥</span> Medical Records</a>
+    <a th:href="@{/billing/my}"        class="nav-link"><span class="nav-icon">💳</span> Billing</a>
+</th:block>
+<th:block layout:fragment="topbar-title">Patient Dashboard</th:block>
+
+<th:block layout:fragment="content">
+<style>
+    .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.75rem; }
+    .stat-card { background:#fff; border-radius:var(--radius-lg); border:2.5px solid var(--clay-border); padding:1.25rem 1.5rem; box-shadow:var(--shadow-card); display:flex; align-items:center; gap:1rem; }
+    .stat-icon { width:50px; height:50px; border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; }
+    .stat-value { font-size:1.8rem; font-weight:800; line-height:1; }
+    .stat-label { font-size:0.72rem; font-weight:700; color:var(--clay-text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-top:0.15rem; }
+    .grid-2 { display:grid; grid-template-columns:1.4fr 1fr; gap:1.25rem; }
+    .card { background:#fff; border-radius:var(--radius-lg); border:2.5px solid var(--clay-border); box-shadow:var(--shadow-card); overflow:hidden; }
+    .card-header { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:2px solid var(--clay-border); }
+    .card-title  { font-size:0.9rem; font-weight:800; }
+    .row-item { display:flex; align-items:center; justify-content:space-between; padding:0.85rem 1.25rem; border-bottom:1.5px solid var(--clay-border); }
+    .row-item:last-child { border-bottom:none; }
+    .badge { display:inline-flex; padding:0.2rem 0.65rem; border-radius:var(--radius-full); font-size:0.68rem; font-weight:800; text-transform:uppercase; }
+    .badge-pending   { background:var(--pastel-yellow); color:#9C7400; }
+    .badge-confirmed { background:var(--pastel-green);  color:#1A9E74; }
+    .badge-completed { background:var(--pastel-blue);   color:#0B87A8; }
+    .badge-rejected  { background:var(--pastel-pink);   color:#D63939; }
+    .badge-cancelled { background:var(--clay-bg);       color:var(--clay-text-muted); border:1.5px solid var(--clay-border);}
+    .health-card { background:linear-gradient(135deg,#6C63FF,#9B5DE5); border-radius:var(--radius-lg); color:#fff; padding:1.5rem; box-shadow:var(--shadow-card); }
+    .vitals-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:0.75rem; margin-top:1rem; }
+    .vital-item { background:rgba(255,255,255,0.15); border-radius:var(--radius-md); padding:0.75rem; text-align:center; backdrop-filter:blur(4px); }
+    .vital-value { font-size:1.1rem; font-weight:800; }
+    .vital-label { font-size:0.68rem; font-weight:700; opacity:0.8; margin-top:0.15rem; }
+</style>
+
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem;">
+    <div>
+        <h1 style="font-size:1.4rem; font-weight:800;">
+            Hello, <span th:text="${patient.user.firstName}">Patient</span> 👋
+        </h1>
+        <p style="color:var(--clay-text-muted); font-size:0.875rem; margin-top:0.2rem;">
+            Here's your health overview for today.
+        </p>
+    </div>
+    <a th:href="@{/appointments/book}" class="clay-btn clay-btn-primary">
+        📅 Book Appointment
+    </a>
+</div>
+
+<!-- Stats -->
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-icon" style="background:var(--pastel-blue);">📅</div>
+        <div>
+            <div class="stat-value" th:text="${appointments.totalElements}">0</div>
+            <div class="stat-label">Total Appointments</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background:var(--pastel-yellow);">⏳</div>
+        <div>
+            <div class="stat-value"
+                 th:text="${#lists.size(appointments.content.?[status.name() == 'PENDING'])}">0</div>
+            <div class="stat-label">Pending</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background:var(--pastel-green);">✅</div>
+        <div>
+            <div class="stat-value"
+                 th:text="${#lists.size(appointments.content.?[status.name() == 'CONFIRMED'])}">0</div>
+            <div class="stat-label">Confirmed</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background:var(--pastel-purple);">🏥</div>
+        <div>
+            <div class="stat-value" th:text="${#lists.size(recentRecords)}">0</div>
+            <div class="stat-label">Medical Records</div>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Recent Appointments -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">📋 Recent Appointments</div>
+            <a th:href="@{/appointments/my}" style="font-size:0.78rem; font-weight:700; color:var(--clay-primary); text-decoration:none;">View all →</a>
+        </div>
+        <div th:if="${appointments.isEmpty()}"
+             style="padding:2.5rem; text-align:center; color:var(--clay-text-muted); font-weight:600;">
+            No appointments yet.
+            <br><a th:href="@{/appointments/book}" style="color:var(--clay-primary); font-weight:700;">Book your first one →</a>
+        </div>
+        <div th:each="appt : ${appointments.content}" class="row-item">
+            <div>
+                <div style="font-weight:700; font-size:0.875rem;"
+                     th:text="'Dr. ' + ${appt.doctor.user.fullName}">Doctor</div>
+                <div style="font-size:0.75rem; color:var(--clay-text-muted);"
+                     th:text="${#temporals.format(appt.appointmentDate,'dd MMM') + ' · ' + #temporals.format(appt.appointmentTime,'hh:mm a')}">—</div>
+            </div>
+            <span class="badge"
+                  th:classappend="${appt.status.name() == 'PENDING'} ? 'badge-pending' : (${appt.status.name() == 'CONFIRMED'} ? 'badge-confirmed' : (${appt.status.name() == 'COMPLETED'} ? 'badge-completed' : (${appt.status.name() == 'REJECTED'} ? 'badge-rejected' : 'badge-cancelled')))"
+                  th:text="${appt.status}">STATUS</span>
+        </div>
+    </div>
+
+    <!-- Health Summary -->
+    <div style="display:flex; flex-direction:column; gap:1.25rem;">
+        <!-- Latest vitals from most recent record -->
+        <div class="health-card" th:if="${!#lists.isEmpty(recentRecords)}">
+            <div style="font-weight:800; font-size:0.95rem; margin-bottom:0.25rem;">💓 Latest Vitals</div>
+            <div style="font-size:0.75rem; opacity:0.8;"
+                 th:text="${'Recorded ' + #temporals.format(recentRecords[0].visitDate,'dd MMM yyyy')}">Date</div>
+            <div class="vitals-grid">
+                <div class="vital-item">
+                    <div class="vital-value" th:text="${recentRecords[0].bloodPressure ?: '—'}">—</div>
+                    <div class="vital-label">Blood Pressure</div>
+                </div>
+                <div class="vital-item">
+                    <div class="vital-value" th:text="${recentRecords[0].heartRate != null ? recentRecords[0].heartRate + ' bpm' : '—'}">—</div>
+                    <div class="vital-label">Heart Rate</div>
+                </div>
+                <div class="vital-item">
+                    <div class="vital-value" th:text="${recentRecords[0].temperature != null ? recentRecords[0].temperature + '°C' : '—'}">—</div>
+                    <div class="vital-label">Temp</div>
+                </div>
+                <div class="vital-item">
+                    <div class="vital-value" th:text="${recentRecords[0].weight != null ? recentRecords[0].weight + ' kg' : '—'}">—</div>
+                    <div class="vital-label">Weight</div>
+                </div>
+                <div class="vital-item">
+                    <div class="vital-value" th:text="${recentRecords[0].height != null ? recentRecords[0].height + ' cm' : '—'}">—</div>
+                    <div class="vital-label">Height</div>
+                </div>
+                <div class="vital-item">
+                    <div class="vital-value" th:text="${recentRecords[0].oxygenSaturation != null ? recentRecords[0].oxygenSaturation + '%' : '—'}">—</div>
+                    <div class="vital-label">SpO₂</div>
+                </div>
+            </div>
+        </div>
+        <div class="health-card" th:if="${#lists.isEmpty(recentRecords)}"
+             style="text-align:center;">
+            <div style="font-size:2.5rem;">🏥</div>
+            <div style="font-weight:700; margin-top:0.5rem;">No records yet</div>
+            <div style="font-size:0.8rem; opacity:0.8; margin-top:0.25rem;">
+                Your vitals will appear here after your first consultation.
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card" style="overflow:visible;">
+            <div class="card-header"><div class="card-title">⚡ Quick Actions</div></div>
+            <div style="padding:1rem; display:flex; flex-direction:column; gap:0.5rem;">
+                <a th:href="@{/appointments/book}" class="clay-btn clay-btn-primary clay-btn-block">
+                    📅 Book New Appointment
+                </a>
+                <a th:href="@{/patient/records}" class="clay-btn clay-btn-secondary clay-btn-block">
+                    🏥 View Medical History
+                </a>
+                <a th:href="@{/billing/my}" class="clay-btn clay-btn-secondary clay-btn-block">
+                    💳 View Bills
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+</th:block>
+</html>

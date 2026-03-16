@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head><title>Blood Inventory</title></head>
+
+<th:block layout:fragment="sidebar-nav">
+    <div class="nav-section-title">Blood Bank</div>
+    <a th:href="@{/blood-bank/dashboard}" class="nav-link"><span class="nav-icon">🩸</span> Dashboard</a>
+    <a th:href="@{/blood-bank/inventory}" class="nav-link active"><span class="nav-icon">📦</span> Inventory</a>
+    <a th:href="@{/blood-bank/requests}"  class="nav-link"><span class="nav-icon">📋</span> Requests</a>
+    <a th:href="@{/blood-bank/donations}" class="nav-link"><span class="nav-icon">❤️</span> Donations</a>
+</th:block>
+<th:block layout:fragment="topbar-title">Blood Inventory</th:block>
+
+<th:block layout:fragment="content">
+<style>
+    .inv-table-wrap { background:#fff; border-radius:var(--radius-lg); border:2.5px solid var(--clay-border); box-shadow:var(--shadow-card); overflow:hidden; margin-bottom:1.5rem; }
+    .bg-pill { display:inline-flex; width:42px; height:42px; border-radius:50%; align-items:center; justify-content:center; font-weight:800; font-size:0.9rem; color:var(--clay-danger); background:var(--pastel-pink); }
+    .progress-bar { height:8px; border-radius:4px; background:var(--clay-border); overflow:hidden; margin-top:4px; }
+    .progress-fill { height:100%; border-radius:4px; }
+    .fill-ok  { background:var(--clay-success); }
+    .fill-med { background:var(--clay-warning); }
+    .fill-low { background:var(--clay-danger); }
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:#fff; border-radius:var(--radius-xl); border:2.5px solid var(--clay-border); box-shadow:12px 12px 0px #D0CEFF; padding:2rem; width:100%; max-width:440px; }
+</style>
+
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem;">
+    <h1 style="font-size:1.4rem; font-weight:800;">Blood Inventory 📦</h1>
+    <button onclick="document.getElementById('setStockModal').classList.add('open')"
+            class="clay-btn clay-btn-primary" style="padding:0.5rem 1.1rem; font-size:0.82rem;">
+        ✏️ Update Stock
+    </button>
+</div>
+
+<!-- Inventory table -->
+<div class="inv-table-wrap">
+    <table class="clay-table" style="border-radius:0;">
+        <thead>
+            <tr>
+                <th>Blood Group</th>
+                <th>Available Units</th>
+                <th>Reserved</th>
+                <th>Usable</th>
+                <th>Min Threshold</th>
+                <th>Status</th>
+                <th>Quick Adjust</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="item : ${inventory}">
+                <td>
+                    <div class="bg-pill" th:text="${item.bloodGroup}">A+</div>
+                </td>
+                <td>
+                    <div style="font-weight:800; font-size:1rem;" th:text="${item.unitsAvailable}">0</div>
+                    <div class="progress-bar" style="width:100px;">
+                        <div class="progress-fill"
+                             th:classappend="${item.unitsAvailable <= item.minimumThreshold} ? 'fill-low' : (${item.unitsAvailable <= item.minimumThreshold * 2} ? 'fill-med' : 'fill-ok')"
+                             th:style="'width:' + ${[#numbers.min(100, item.unitsAvailable * 5)]} + '%'"></div>
+                    </div>
+                </td>
+                <td th:text="${item.unitsReserved}">0</td>
+                <td style="font-weight:800;" th:text="${item.unitsUsable}">0</td>
+                <td th:text="${item.minimumThreshold}">5</td>
+                <td>
+                    <span th:if="${item.unitsAvailable == 0}"
+                          style="background:var(--clay-danger); color:#fff; padding:0.2rem 0.6rem; border-radius:var(--radius-full); font-size:0.7rem; font-weight:800;">EMPTY</span>
+                    <span th:if="${item.unitsAvailable > 0 && item.isBelowThreshold()}"
+                          style="background:var(--pastel-yellow); color:#9C7400; padding:0.2rem 0.6rem; border-radius:var(--radius-full); font-size:0.7rem; font-weight:800;">⚠ LOW</span>
+                    <span th:if="${item.unitsAvailable > 0 && !item.isBelowThreshold()}"
+                          style="background:var(--pastel-green); color:#1A9E74; padding:0.2rem 0.6rem; border-radius:var(--radius-full); font-size:0.7rem; font-weight:800;">✓ OK</span>
+                </td>
+                <td>
+                    <form th:action="@{/blood-bank/inventory/adjust}" method="post" style="display:flex; gap:0.4rem; align-items:center;">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <input type="hidden" name="bankId" th:value="${bank.id}"/>
+                        <input type="hidden" name="bloodGroup" th:value="${item.bloodGroup}"/>
+                        <input type="number" name="delta" class="clay-input" placeholder="+/-"
+                               style="width:70px; padding:0.35rem 0.5rem; font-size:0.8rem;"/>
+                        <button type="submit" class="clay-btn clay-btn-primary"
+                                style="padding:0.3rem 0.6rem; font-size:0.78rem;">Apply</button>
+                    </form>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(inventory)}">
+                <td colspan="7" style="text-align:center; padding:2.5rem; color:var(--clay-text-muted);">
+                    No inventory data. Set up initial stock using the Update Stock button.
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Set Stock Modal -->
+<div class="modal-overlay" id="setStockModal">
+    <div class="modal-box">
+        <div style="font-weight:800; font-size:1.1rem; margin-bottom:1.25rem;">✏️ Set Blood Stock</div>
+        <form th:action="@{/blood-bank/inventory/update}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <input type="hidden" name="bankId" th:value="${bank.id}"/>
+            <div class="form-group">
+                <label class="clay-label">Blood Group</label>
+                <select name="bloodGroup" class="clay-input clay-select" required>
+                    <option th:each="bg : ${bloodGroups}" th:value="${bg}" th:text="${bg}">A+</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="clay-label">Units Available</label>
+                <input type="number" name="units" class="clay-input" min="0" required placeholder="e.g. 20"/>
+            </div>
+            <div class="form-group">
+                <label class="clay-label">Minimum Threshold (alert below)</label>
+                <input type="number" name="threshold" class="clay-input" min="1" value="5"/>
+            </div>
+            <div style="display:flex; gap:0.75rem; margin-top:0.5rem;">
+                <button type="button" class="clay-btn clay-btn-secondary" style="flex:1; justify-content:center;"
+                        onclick="document.getElementById('setStockModal').classList.remove('open')">Cancel</button>
+                <button type="submit" class="clay-btn clay-btn-primary" style="flex:1; justify-content:center;">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+</th:block>
+
+<th:block layout:fragment="scripts">
+<script>
+    document.getElementById('setStockModal').addEventListener('click', e => {
+        if (e.target === document.getElementById('setStockModal'))
+            document.getElementById('setStockModal').classList.remove('open');
+    });
+</script>
+</th:block>
+</html>
