@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head><title>Appointments</title></head>
+
+<th:block layout:fragment="sidebar-nav">
+    <div class="nav-section-title">Main</div>
+    <a th:href="@{/doctor/dashboard}"    class="nav-link"><span class="nav-icon">📊</span> Dashboard</a>
+    <div class="nav-section-title">Schedule</div>
+    <a th:href="@{/doctor/slots}"        class="nav-link"><span class="nav-icon">🗓️</span> Manage Slots</a>
+    <a th:href="@{/doctor/appointments}" class="nav-link active"><span class="nav-icon">📋</span> Appointments</a>
+    <div class="nav-section-title">Clinical</div>
+    <a th:href="@{/doctor/patients}"     class="nav-link"><span class="nav-icon">🧑‍⚕️</span> My Patients</a>
+</th:block>
+<th:block layout:fragment="topbar-title">Appointments</th:block>
+
+<th:block layout:fragment="content">
+<style>
+    .filter-tabs { display:flex; gap:0.5rem; margin-bottom:1.5rem; }
+    .filter-tab { padding:0.45rem 1.1rem; border-radius:var(--radius-full); border:2px solid var(--clay-border); background:var(--clay-bg); font-weight:700; font-size:0.82rem; cursor:pointer; text-decoration:none; color:var(--clay-text-muted); transition:all 0.2s; }
+    .filter-tab.active, .filter-tab:hover { background:var(--pastel-purple); color:var(--clay-primary); border-color:var(--clay-primary); }
+    .appt-card { background:#fff; border-radius:var(--radius-lg); border:2.5px solid var(--clay-border); box-shadow:var(--shadow-card); margin-bottom:1rem; overflow:hidden; }
+    .appt-header { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1.5px solid var(--clay-border); background:var(--clay-bg); }
+    .appt-body   { padding:1.25rem; }
+    .info-row    { display:flex; gap:1.5rem; margin-bottom:0.75rem; }
+    .info-item   {}
+    .info-label  { font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.3px; color:var(--clay-text-muted); margin-bottom:0.1rem; }
+    .info-value  { font-size:0.875rem; font-weight:700; }
+    .badge { display:inline-flex; padding:0.2rem 0.65rem; border-radius:var(--radius-full); font-size:0.68rem; font-weight:800; text-transform:uppercase; }
+    .badge-pending   { background:var(--pastel-yellow); color:#9C7400; }
+    .badge-confirmed { background:var(--pastel-green);  color:#1A9E74; }
+    .badge-rejected  { background:var(--pastel-pink);   color:#D63939; }
+    .badge-completed { background:var(--pastel-blue);   color:#0B87A8; }
+    .badge-cancelled { background:var(--clay-bg);       color:var(--clay-text-muted); }
+    .btn-action { padding:0.4rem 1rem; border-radius:var(--radius-full); font-size:0.8rem; font-weight:700; cursor:pointer; border:2px solid; font-family:'Nunito',sans-serif; text-decoration:none; display:inline-flex; align-items:center; gap:0.3rem; }
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:#fff; border-radius:var(--radius-xl); border:2.5px solid var(--clay-border); box-shadow:12px 12px 0px #D0CEFF; padding:2rem; width:100%; max-width:440px; }
+    .pagination { display:flex; gap:0.4rem; margin-top:1.5rem; justify-content:center; }
+    .page-btn { width:36px; height:36px; border-radius:var(--radius-md); border:2px solid var(--clay-border); background:var(--clay-bg); display:flex; align-items:center; justify-content:center; font-size:0.82rem; font-weight:700; cursor:pointer; text-decoration:none; color:var(--clay-text-muted); }
+    .page-btn.active, .page-btn:hover { background:var(--pastel-purple); color:var(--clay-primary); border-color:var(--clay-primary); }
+</style>
+
+<div style="margin-bottom:1.5rem;">
+    <h1 style="font-size:1.4rem; font-weight:800;">Appointments 📋</h1>
+    <p style="color:var(--clay-text-muted); font-size:0.875rem;">Review and manage patient appointment requests.</p>
+</div>
+
+<div class="filter-tabs">
+    <a th:href="@{/doctor/appointments(filter='pending')}" class="filter-tab"
+       th:classappend="${filter == 'pending'} ? 'active'">⏳ Pending</a>
+    <a th:href="@{/doctor/appointments(filter='all')}" class="filter-tab"
+       th:classappend="${filter == 'all'} ? 'active'">📋 All</a>
+</div>
+
+<div th:if="${appointments.isEmpty()}"
+     style="text-align:center; padding:3rem; color:var(--clay-text-muted);">
+    <div style="font-size:3rem;">🎉</div>
+    <div style="font-weight:600; margin-top:0.5rem;">No appointments found</div>
+</div>
+
+<div th:each="appt : ${appointments}" class="appt-card">
+    <div class="appt-header">
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+            <div style="width:40px;height:40px;border-radius:50%;background:var(--clay-primary);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;"
+                 th:text="${#strings.substring(appt.patient.user.firstName,0,1)}">P</div>
+            <div>
+                <div style="font-weight:800;" th:text="${appt.patient.user.fullName}">Patient</div>
+                <div style="font-size:0.78rem; color:var(--clay-text-muted);"
+                     th:text="${'#' + appt.appointmentNumber}">APT-001</div>
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+            <div style="text-align:right;">
+                <div style="font-weight:800; font-size:0.9rem;"
+                     th:text="${#temporals.format(appt.appointmentDate,'dd MMM yyyy')}">Date</div>
+                <div style="font-size:0.8rem; color:var(--clay-text-muted);"
+                     th:text="${#temporals.format(appt.appointmentTime,'hh:mm a')}">Time</div>
+            </div>
+            <span class="badge"
+                  th:classappend="${appt.status.name() == 'PENDING'} ? 'badge-pending' : (${appt.status.name() == 'CONFIRMED'} ? 'badge-confirmed' : (${appt.status.name() == 'COMPLETED'} ? 'badge-completed' : (${appt.status.name() == 'REJECTED'} ? 'badge-rejected' : 'badge-cancelled')))"
+                  th:text="${appt.status}">STATUS</span>
+        </div>
+    </div>
+    <div class="appt-body">
+        <div class="info-row">
+            <div class="info-item">
+                <div class="info-label">Type</div>
+                <div class="info-value" th:text="${appt.type}">IN_PERSON</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Fee</div>
+                <div class="info-value" th:text="'₹' + ${appt.consultationFee}">—</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Payment</div>
+                <div class="info-value" th:text="${appt.isPaid} ? '✅ Paid' : '⏳ Pending'">—</div>
+            </div>
+        </div>
+        <div th:if="${appt.symptoms}" style="background:var(--clay-bg); padding:0.6rem 0.85rem; border-radius:var(--radius-md); font-size:0.82rem; margin-bottom:0.75rem;">
+            <strong>Symptoms:</strong> <span th:text="${appt.symptoms}">—</span>
+        </div>
+        <div th:if="${appt.rejectionReason}" style="background:var(--pastel-pink); border:1.5px solid var(--clay-danger); padding:0.6rem 0.85rem; border-radius:var(--radius-md); font-size:0.82rem; margin-bottom:0.75rem; color:#D63939;">
+            <strong>Rejection Reason:</strong> <span th:text="${appt.rejectionReason}">—</span>
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+            <th:block th:if="${appt.status.name() == 'PENDING'}">
+                <button type="button" class="btn-action" style="background:var(--clay-success); color:#fff; border-color:var(--clay-success);"
+                        th:onclick="'openConfirm(' + ${appt.id} + ')'">
+                    ✓ Confirm
+                </button>
+                <button type="button" class="btn-action" style="background:var(--clay-danger); color:#fff; border-color:var(--clay-danger);"
+                        th:onclick="'openReject(' + ${appt.id} + ')'">
+                    ✗ Reject
+                </button>
+            </th:block>
+            <th:block th:if="${appt.status.name() == 'CONFIRMED'}">
+                <form th:action="@{'/doctor/appointments/' + ${appt.id} + '/complete'}" method="post" style="display:inline;">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <button type="submit" class="btn-action" style="background:var(--pastel-blue); color:#0B87A8; border-color:#48CAE4;">
+                        🏁 Mark Complete
+                    </button>
+                </form>
+            </th:block>
+            <a th:href="@{'/doctor/appointments/' + ${appt.id}}" class="btn-action"
+               style="background:var(--pastel-purple); color:var(--clay-primary); border-color:var(--clay-border);">
+                👁 View Details
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="pagination" th:if="${appointments.totalPages > 1}">
+    <a th:each="i : ${#numbers.sequence(0, appointments.totalPages - 1)}"
+       th:href="@{/doctor/appointments(page=${i}, filter=${filter})}"
+       class="page-btn" th:classappend="${i == appointments.number} ? 'active'"
+       th:text="${i + 1}">1</a>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal-box">
+        <div style="font-size:1.1rem; font-weight:800; margin-bottom:1rem; color:var(--clay-success);">✓ Confirm Appointment</div>
+        <form id="confirmForm" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <div class="form-group">
+                <label class="clay-label">Notes for Patient (optional)</label>
+                <textarea name="notes" class="clay-input" rows="3"
+                          placeholder="Any preparation instructions, location, etc."
+                          style="resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex; gap:0.75rem;">
+                <button type="button" class="clay-btn clay-btn-secondary" style="flex:1; justify-content:center;"
+                        onclick="document.getElementById('confirmModal').classList.remove('open')">Cancel</button>
+                <button type="submit" class="clay-btn" style="flex:1; justify-content:center; background:var(--clay-success); color:#fff; border-color:var(--clay-success);">Confirm</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal-overlay" id="rejectModal">
+    <div class="modal-box">
+        <div style="font-size:1.1rem; font-weight:800; margin-bottom:1rem; color:var(--clay-danger);">✗ Reject Appointment</div>
+        <form id="rejectForm" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <div class="form-group">
+                <label class="clay-label">Reason *</label>
+                <textarea name="reason" class="clay-input" rows="3" required style="resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex; gap:0.75rem;">
+                <button type="button" class="clay-btn clay-btn-secondary" style="flex:1; justify-content:center;"
+                        onclick="document.getElementById('rejectModal').classList.remove('open')">Cancel</button>
+                <button type="submit" class="clay-btn" style="flex:1; justify-content:center; background:var(--clay-danger); color:#fff; border-color:var(--clay-danger);">Reject</button>
+            </div>
+        </form>
+    </div>
+</div>
+</th:block>
+
+<th:block layout:fragment="scripts">
+<script>
+    function openConfirm(id) {
+        document.getElementById('confirmForm').action = '/doctor/appointments/' + id + '/confirm';
+        document.getElementById('confirmModal').classList.add('open');
+    }
+    function openReject(id) {
+        document.getElementById('rejectForm').action = '/doctor/appointments/' + id + '/reject';
+        document.getElementById('rejectModal').classList.add('open');
+    }
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+        m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+    });
+</script>
+</th:block>
+</html>

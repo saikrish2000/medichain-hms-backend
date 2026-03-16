@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head><title>Manage Slots</title></head>
+
+<th:block layout:fragment="sidebar-nav">
+    <div class="nav-section-title">Main</div>
+    <a th:href="@{/doctor/dashboard}"    class="nav-link"><span class="nav-icon">📊</span> Dashboard</a>
+    <div class="nav-section-title">Schedule</div>
+    <a th:href="@{/doctor/slots}"        class="nav-link active"><span class="nav-icon">🗓️</span> Manage Slots</a>
+    <a th:href="@{/doctor/appointments}" class="nav-link"><span class="nav-icon">📋</span> Appointments</a>
+    <div class="nav-section-title">Clinical</div>
+    <a th:href="@{/doctor/patients}"     class="nav-link"><span class="nav-icon">🧑‍⚕️</span> My Patients</a>
+</th:block>
+<th:block layout:fragment="topbar-title">Slot Management</th:block>
+
+<th:block layout:fragment="content">
+<style>
+    .grid-main { display:grid; grid-template-columns:1fr 340px; gap:1.5rem; align-items:start; }
+    .card { background:#fff; border-radius:var(--radius-lg); border:2.5px solid var(--clay-border); box-shadow:var(--shadow-card); overflow:hidden; }
+    .card-header { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:2px solid var(--clay-border); }
+    .card-title  { font-size:0.9rem; font-weight:800; }
+    /* Week navigation */
+    .week-nav { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; background:var(--clay-bg); border-bottom:2px solid var(--clay-border); }
+    .week-title { font-weight:800; font-size:0.9rem; }
+    .nav-arrow { padding:0.3rem 0.75rem; border-radius:var(--radius-full); border:2px solid var(--clay-border); background:#fff; font-weight:700; text-decoration:none; color:var(--clay-text-muted); font-size:0.82rem; }
+    .nav-arrow:hover { background:var(--pastel-purple); color:var(--clay-primary); border-color:var(--clay-primary); }
+    /* Calendar grid */
+    .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); min-height:300px; }
+    .cal-day-header { background:var(--pastel-purple); color:var(--clay-primary); font-size:0.72rem; font-weight:800; text-transform:uppercase; padding:0.5rem; text-align:center; border-right:1.5px solid var(--clay-border); }
+    .cal-day-header:last-child { border-right:none; }
+    .cal-day { padding:0.6rem; border-right:1.5px solid var(--clay-border); border-top:1.5px solid var(--clay-border); min-height:100px; vertical-align:top; }
+    .cal-day:last-child { border-right:none; }
+    .cal-day.today { background:var(--pastel-purple); }
+    .cal-date { font-size:0.78rem; font-weight:800; color:var(--clay-text-muted); margin-bottom:0.4rem; text-align:right; }
+    .cal-date.today-date { color:var(--clay-primary); }
+    .slot-chip {
+        display:flex; align-items:center; justify-content:space-between;
+        background:var(--pastel-green); border:1.5px solid var(--clay-border);
+        border-radius:8px; padding:0.2rem 0.4rem; margin-bottom:0.25rem;
+        font-size:0.65rem; font-weight:700; color:#1A9E74; cursor:pointer;
+    }
+    .slot-chip.blocked  { background:var(--pastel-pink);   color:#D63939; }
+    .slot-chip.recurring{ background:var(--pastel-blue);   color:#0B87A8; }
+    .slot-chip-time { flex:1; }
+    .slot-chip-actions { display:flex; gap:2px; }
+    .chip-btn { background:none; border:none; cursor:pointer; font-size:0.65rem; padding:1px 3px; border-radius:4px; }
+    .chip-btn:hover { background:rgba(0,0,0,0.1); }
+    /* Forms */
+    .tab-nav { display:flex; gap:0.5rem; margin-bottom:1.25rem; }
+    .tab-btn { padding:0.4rem 1rem; border-radius:var(--radius-full); border:2px solid var(--clay-border); background:var(--clay-bg); font-weight:700; font-size:0.8rem; cursor:pointer; font-family:'Nunito',sans-serif; }
+    .tab-btn.active { background:var(--pastel-purple); color:var(--clay-primary); border-color:var(--clay-primary); }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+    .badge { display:inline-flex; padding:0.15rem 0.5rem; border-radius:var(--radius-full); font-size:0.65rem; font-weight:800; text-transform:uppercase; }
+    .badge-available { background:var(--pastel-green);  color:#1A9E74; }
+    .badge-blocked   { background:var(--pastel-pink);   color:#D63939; }
+    .badge-recurring { background:var(--pastel-blue);   color:#0B87A8; }
+    .slot-list-row { display:flex; align-items:center; justify-content:space-between; padding:0.6rem 1rem; border-bottom:1.5px solid var(--clay-border); font-size:0.82rem; }
+    .slot-list-row:last-child { border-bottom:none; }
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:#fff; border-radius:var(--radius-xl); border:2.5px solid var(--clay-border); box-shadow:12px 12px 0px #D0CEFF; padding:2rem; width:100%; max-width:440px; }
+</style>
+
+<div style="margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between;">
+    <div>
+        <h1 style="font-size:1.4rem; font-weight:800;">Slot Management 🗓️</h1>
+        <p style="color:var(--clay-text-muted); font-size:0.875rem;">Create, block and manage your availability calendar.</p>
+    </div>
+    <button onclick="document.getElementById('addSlotPanel').scrollIntoView({behavior:'smooth'})"
+            class="clay-btn clay-btn-primary" style="padding:0.5rem 1.1rem; font-size:0.82rem;">
+        <i class="fa fa-plus"></i> Add Slot
+    </button>
+</div>
+
+<div class="grid-main">
+    <!-- Calendar -->
+    <div>
+        <div class="card" style="margin-bottom:1.25rem;">
+            <div class="week-nav">
+                <a th:href="@{/doctor/slots(week=${prevWeek})}" class="nav-arrow">← Prev</a>
+                <div class="week-title"
+                     th:text="${#temporals.format(weekStart,'dd MMM')} + ' – ' + ${#temporals.format(weekEnd,'dd MMM yyyy')}">Week</div>
+                <a th:href="@{/doctor/slots(week=${nextWeek})}" class="nav-arrow">Next →</a>
+            </div>
+            <div class="cal-grid">
+                <!-- Headers -->
+                <div th:each="entry : ${calendar}" class="cal-day-header"
+                     th:text="${#temporals.format(entry.key,'EEE')}">Mon</div>
+                <!-- Day cells -->
+                <div th:each="entry : ${calendar}"
+                     class="cal-day"
+                     th:classappend="${entry.key == today} ? 'today'">
+                    <div class="cal-date"
+                         th:classappend="${entry.key == today} ? 'today-date'"
+                         th:text="${#temporals.format(entry.key,'d')}">1</div>
+                    <div th:each="slot : ${entry.value}">
+                        <div class="slot-chip"
+                             th:classappend="${slot.status.name() == 'BLOCKED'} ? 'blocked' : (${slot.slotType.name() == 'RECURRING'} ? 'recurring' : '')">
+                            <span class="slot-chip-time"
+                                  th:text="${#temporals.format(slot.startTime,'h:mm')}">9:00</span>
+                            <div class="slot-chip-actions">
+                                <form th:if="${slot.status.name() == 'AVAILABLE'}"
+                                      th:action="@{'/doctor/slots/' + ${slot.id} + '/block'}" method="post" style="display:inline;">
+                                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                    <input type="hidden" name="reason" value="Blocked by doctor"/>
+                                    <button type="submit" class="chip-btn" title="Block">🚫</button>
+                                </form>
+                                <form th:if="${slot.status.name() == 'BLOCKED'}"
+                                      th:action="@{'/doctor/slots/' + ${slot.id} + '/unblock'}" method="post" style="display:inline;">
+                                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                    <button type="submit" class="chip-btn" title="Unblock">✅</button>
+                                </form>
+                                <form th:action="@{'/doctor/slots/' + ${slot.id} + '/delete'}" method="post" style="display:inline;"
+                                      onsubmit="return confirm('Remove this slot?')">
+                                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                    <button type="submit" class="chip-btn" title="Delete">🗑️</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div th:if="${#lists.isEmpty(entry.value)}"
+                         style="font-size:0.65rem; color:var(--clay-text-muted); text-align:center; margin-top:1rem;">No slots</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- All slots list -->
+        <div class="card">
+            <div class="card-header"><div class="card-title">📋 All Active Slots</div></div>
+            <div th:each="slot : ${allSlots}" class="slot-list-row">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <div>
+                        <div style="font-weight:700;">
+                            <span th:if="${slot.slotType.name() == 'SPECIFIC_DATE'}"
+                                  th:text="${#temporals.format(slot.slotDate,'dd MMM yyyy')}">Date</span>
+                            <span th:if="${slot.slotType.name() == 'RECURRING'}"
+                                  th:text="'Every ' + ${slot.dayOfWeek}">Day</span>
+                        </div>
+                        <div style="font-size:0.75rem; color:var(--clay-text-muted);"
+                             th:text="${#temporals.format(slot.startTime,'h:mm a') + ' – ' + #temporals.format(slot.endTime,'h:mm a') + ' · ' + slot.slotDurationMinutes + 'min each'}">Time</div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <span class="badge"
+                          th:classappend="${slot.status.name() == 'AVAILABLE'} ? 'badge-available' : (${slot.slotType.name() == 'RECURRING'} ? 'badge-recurring' : 'badge-blocked')"
+                          th:text="${slot.slotType.name() == 'RECURRING'} ? 'Recurring' : ${slot.status}">Status</span>
+                    <form th:action="@{'/doctor/slots/' + ${slot.id} + '/delete'}" method="post"
+                          onsubmit="return confirm('Remove slot?')">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <button type="submit" style="background:var(--pastel-pink); border:none; border-radius:8px; padding:0.2rem 0.5rem; cursor:pointer; color:#D63939; font-size:0.75rem; font-weight:700;">Remove</button>
+                    </form>
+                </div>
+            </div>
+            <div th:if="${#lists.isEmpty(allSlots)}"
+                 style="padding:2rem; text-align:center; color:var(--clay-text-muted); font-weight:600;">No slots yet. Add your first slot!</div>
+        </div>
+    </div>
+
+    <!-- Add Slot Panel -->
+    <div id="addSlotPanel">
+        <div class="card">
+            <div class="card-header"><div class="card-title">➕ Add New Slot</div></div>
+            <div style="padding:1.25rem;">
+                <div class="tab-nav">
+                    <button class="tab-btn active" onclick="switchTab('specific', this)">Specific Date</button>
+                    <button class="tab-btn" onclick="switchTab('recurring', this)">Recurring</button>
+                </div>
+
+                <!-- Specific Date -->
+                <div class="tab-panel active" id="tab-specific">
+                    <form th:action="@{/doctor/slots/create-specific}" method="post">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <div class="form-group">
+                            <label class="clay-label">Date</label>
+                            <input type="date" name="slotDate" class="clay-input"
+                                   th:min="${today}" required/>
+                        </div>
+                        <div class="form-group">
+                            <label class="clay-label">Start Time</label>
+                            <input type="time" name="startTime" class="clay-input" required value="09:00"/>
+                        </div>
+                        <div class="form-group">
+                            <label class="clay-label">End Time</label>
+                            <input type="time" name="endTime" class="clay-input" required value="13:00"/>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                            <div class="form-group">
+                                <label class="clay-label">Slot Duration (min)</label>
+                                <select name="duration" class="clay-input clay-select">
+                                    <option value="10">10 min</option>
+                                    <option value="15" selected>15 min</option>
+                                    <option value="20">20 min</option>
+                                    <option value="30">30 min</option>
+                                    <option value="45">45 min</option>
+                                    <option value="60">60 min</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="clay-label">Max Patients</label>
+                                <input type="number" name="maxPatients" class="clay-input" value="1" min="1" max="10"/>
+                            </div>
+                        </div>
+                        <button type="submit" class="clay-btn clay-btn-primary clay-btn-block">
+                            <i class="fa fa-plus"></i> Add Slot
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Recurring -->
+                <div class="tab-panel" id="tab-recurring">
+                    <form th:action="@{/doctor/slots/create-recurring}" method="post">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <div class="form-group">
+                            <label class="clay-label">Day of Week</label>
+                            <select name="dayOfWeek" class="clay-input clay-select" required>
+                                <option th:each="day : ${days}" th:value="${day}" th:text="${day}">MON</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="clay-label">Start Time</label>
+                            <input type="time" name="startTime" class="clay-input" required value="09:00"/>
+                        </div>
+                        <div class="form-group">
+                            <label class="clay-label">End Time</label>
+                            <input type="time" name="endTime" class="clay-input" required value="13:00"/>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                            <div class="form-group">
+                                <label class="clay-label">Duration (min)</label>
+                                <select name="duration" class="clay-input clay-select">
+                                    <option value="10">10 min</option>
+                                    <option value="15" selected>15 min</option>
+                                    <option value="20">20 min</option>
+                                    <option value="30">30 min</option>
+                                    <option value="60">60 min</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="clay-label">Max Patients</label>
+                                <input type="number" name="maxPatients" class="clay-input" value="1" min="1" max="10"/>
+                            </div>
+                        </div>
+                        <button type="submit" class="clay-btn clay-btn-primary clay-btn-block">
+                            <i class="fa fa-repeat"></i> Add Recurring Slot
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="card" style="margin-top:1rem; padding:1rem 1.25rem;">
+            <div style="font-size:0.82rem; font-weight:800; margin-bottom:0.6rem;">Legend</div>
+            <div style="display:flex; flex-direction:column; gap:0.4rem; font-size:0.78rem; font-weight:600;">
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <div style="width:14px; height:14px; background:var(--pastel-green); border-radius:4px;"></div>
+                    Available slot
+                </div>
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <div style="width:14px; height:14px; background:var(--pastel-pink); border-radius:4px;"></div>
+                    Blocked slot
+                </div>
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <div style="width:14px; height:14px; background:var(--pastel-blue); border-radius:4px;"></div>
+                    Recurring weekly
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</th:block>
+
+<th:block layout:fragment="scripts">
+<script>
+    function switchTab(name, btn) {
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + name).classList.add('active');
+        btn.classList.add('active');
+    }
+</script>
+</th:block>
+</html>

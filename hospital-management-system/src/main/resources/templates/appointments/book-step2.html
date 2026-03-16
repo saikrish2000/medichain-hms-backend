@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head><title>Select Doctor</title></head>
+
+<th:block layout:fragment="sidebar-nav">
+    <div class="nav-section-title">Appointments</div>
+    <a th:href="@{/appointments/book}" class="nav-link active"><span class="nav-icon">📅</span> Book Appointment</a>
+    <a th:href="@{/appointments/my}"   class="nav-link"><span class="nav-icon">📋</span> My Appointments</a>
+</th:block>
+<th:block layout:fragment="topbar-title">Select a Doctor</th:block>
+
+<th:block layout:fragment="content">
+<style>
+    .stepper { display:flex; align-items:center; gap:0; margin-bottom:2rem; }
+    .step { display:flex; align-items:center; gap:0.5rem; }
+    .step-num { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.9rem; border:2.5px solid var(--clay-border); background:#fff; }
+    .step-num.active { background:var(--clay-primary); color:#fff; border-color:var(--clay-primary); }
+    .step-num.done   { background:var(--clay-success);  color:#fff; border-color:var(--clay-success); }
+    .step-label { font-weight:700; font-size:0.82rem; color:var(--clay-text-muted); }
+    .step-label.active { color:var(--clay-primary); }
+    .step-line { flex:1; height:2px; background:var(--clay-border); margin:0 0.5rem; }
+    .doctor-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:1.25rem; }
+    .doctor-card {
+        background:#fff; border:2.5px solid var(--clay-border); border-radius:var(--radius-lg);
+        padding:1.5rem; box-shadow:var(--shadow-card); transition:all 0.2s;
+        display:flex; flex-direction:column; gap:0.75rem;
+    }
+    .doctor-card:hover { transform:translateY(-4px); border-color:var(--clay-primary); box-shadow:var(--shadow-lg); }
+    .doc-header { display:flex; align-items:center; gap:0.75rem; }
+    .doc-avatar { width:56px; height:56px; border-radius:var(--radius-md); background:var(--clay-primary); display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.3rem; font-weight:800; flex-shrink:0; }
+    .doc-name  { font-weight:800; font-size:1rem; }
+    .doc-spec  { font-size:0.78rem; color:var(--clay-text-muted); font-weight:600; }
+    .doc-info-row { display:flex; gap:1rem; }
+    .doc-info-item { font-size:0.78rem; font-weight:600; color:var(--clay-text-muted); }
+    .doc-info-item strong { color:var(--clay-text); }
+    .stars { color:#FFBE0B; font-size:0.85rem; }
+    .fee-badge { display:inline-flex; padding:0.25rem 0.75rem; background:var(--pastel-green); border-radius:var(--radius-full); font-size:0.8rem; font-weight:800; color:#1A9E74; }
+    .filter-bar { background:#fff; border:2.5px solid var(--clay-border); border-radius:var(--radius-lg); padding:1.25rem 1.5rem; margin-bottom:1.5rem; box-shadow:var(--shadow-card); }
+</style>
+
+<!-- Stepper -->
+<div class="stepper">
+    <div class="step">
+        <div class="step-num done">✓</div>
+        <div class="step-label">Choose Specialty</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step">
+        <div class="step-num active">2</div>
+        <div class="step-label active">Select Doctor</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-label">Pick Time Slot</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-label">Confirm</div>
+    </div>
+</div>
+
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.25rem;">
+    <div>
+        <h2 style="font-size:1.3rem; font-weight:800;">Available Doctors</h2>
+        <p style="color:var(--clay-text-muted); font-size:0.875rem;">Select a doctor to see their available slots.</p>
+    </div>
+    <a th:href="@{/appointments/book}" style="color:var(--clay-primary); font-weight:700; font-size:0.82rem; text-decoration:none;">← Back</a>
+</div>
+
+<!-- Filter -->
+<div class="filter-bar">
+    <form th:action="@{/appointments/book/doctors}" method="get" style="display:flex; gap:0.75rem; align-items:flex-end;">
+        <div style="flex:2;">
+            <label class="clay-label">Search</label>
+            <input type="text" name="q" class="clay-input" th:value="${q}"
+                   placeholder="Doctor name, specialization..."/>
+        </div>
+        <div style="flex:1;">
+            <label class="clay-label">Department</label>
+            <select name="departmentId" class="clay-input clay-select">
+                <option value="">All Departments</option>
+                <option th:each="dept : ${departments}" th:value="${dept.id}"
+                        th:selected="${dept.id == departmentId}" th:text="${dept.name}">Dept</option>
+            </select>
+        </div>
+        <div style="flex:1;">
+            <label class="clay-label">Specialization</label>
+            <select name="specializationId" class="clay-input clay-select">
+                <option value="">All</option>
+                <option th:each="spec : ${specializations}" th:value="${spec.id}"
+                        th:selected="${spec.id == specializationId}" th:text="${spec.name}">Spec</option>
+            </select>
+        </div>
+        <button type="submit" class="clay-btn clay-btn-primary" style="padding:0.7rem 1.25rem;">Filter</button>
+    </form>
+</div>
+
+<div th:if="${doctors.isEmpty()}"
+     style="text-align:center; padding:3rem; color:var(--clay-text-muted); background:#fff; border-radius:var(--radius-lg); border:2.5px solid var(--clay-border);">
+    <div style="font-size:3rem;">🔍</div>
+    <div style="font-weight:600; margin-top:0.5rem;">No doctors found for this filter.</div>
+</div>
+
+<div class="doctor-grid">
+    <div th:each="doctor : ${doctors}" class="doctor-card">
+        <div class="doc-header">
+            <div class="doc-avatar" th:text="${#strings.substring(doctor.user.firstName,0,1)}">D</div>
+            <div>
+                <div class="doc-name" th:text="'Dr. ' + ${doctor.user.fullName}">Dr. Name</div>
+                <div class="doc-spec" th:text="${doctor.specialization.name}">Specialization</div>
+            </div>
+        </div>
+        <div class="doc-info-row">
+            <div class="doc-info-item">
+                <strong th:text="${doctor.experienceYears}">0</strong> yrs exp
+            </div>
+            <div class="doc-info-item">
+                <strong th:text="${doctor.qualification}">MBBS</strong>
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span class="stars">★★★★☆</span>
+            <span class="fee-badge" th:text="'₹' + ${doctor.consultationFee}">₹500</span>
+        </div>
+        <a th:href="@{/appointments/book/slots(doctorId=${doctor.id})}"
+           class="clay-btn clay-btn-primary clay-btn-block">
+            View Available Slots →
+        </a>
+    </div>
+</div>
+</th:block>
+</html>
