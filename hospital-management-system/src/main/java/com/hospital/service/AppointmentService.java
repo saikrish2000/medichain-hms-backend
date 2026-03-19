@@ -1,120 +1,106 @@
 package com.hospital.service;
 
 import com.hospital.entity.*;
-import com.hospital.entity.Appointment.*;
+import com.hospital.entity.Appointment.AppointmentStatus;
 import com.hospital.exception.BadRequestException;
 import com.hospital.exception.ResourceNotFoundException;
 import com.hospital.repository.*;
-import com.hospital.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.*;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.time.LocalDate;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AppointmentService {
 
     private final AppointmentRepository  appointmentRepo;
+    private final DoctorSlotRepository   slotRepo;
     private final PatientRepository      patientRepo;
     private final DoctorRepository       doctorRepo;
-    private final DoctorSlotRepository   slotRepo;
-    private final DepartmentRepository   deptRepo;
-    private final HospitalBranchRepository branchRepo;
     private final NotificationService    notificationService;
-    private final AuditService           auditService;
 
     private static final AtomicLong SEQ = new AtomicLong(1000);
 
-    // ── BOOK APPOINTMENT (by patient) ─────────────────────
+    // ── BOOK ──────────────────────────────────────────────
+
     @Transactional
-    public Appointment bookAppointment(Long patientUserId, Long doctorId,
-                                       LocalDate date, LocalTime time,
-                                       Long slotId, String symptoms,
-                                       AppointmentType type) {
+    public Appointment bookAppointment(Long patientUserId, Long slotId,
+                                        String reason, String notes) {
         Patient patient = patientRepo.findByUserId(patientUserId)
-            .orElseThrow(() -> new BadRequestException("Patient profile not found."));
+            .orElseThrow(() -> new ResourceNotFoundException("Patient", "userId", patientUserId));
+        DoctorSlot slot = slotRepo.findById(slotId)
+            .orElseThrow(() -> new ResourceNotFoundException("DoctorSlot", "id", slotId));
 
-        Doctor doctor = doctorRepo.findById(doctorId)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", doctorId));
+        if (slot.getIsBlocked())
+            throw new BadRequestException("This slot is no longer available.");
 
-        if (doctor.getApprovalStatus() != Doctor.ApprovalStatus.APPROVED)
-            throw new BadRequestException("Doctor is not available for booking.");
+        long booked = appointmentRepo.countBySlotIdAndStatus(slotId, AppointmentStatus.CONFIRMED)
+                    + appointmentRepo.countBySlotIdAndStatus(slotId, AppointmentStatus.PENDING);
+        if (booked >= slot.getMaxPatients())
+            throw new BadRequestException("This slot is fully booked.");
 
-        // Conflict check
-        if (appointmentRepo.existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusNot(
-                doctorId, date, time, AppointmentStatus.CANCELLED))
-            throw new BadRequestException("This slot is already booked. Please pick another time.");
-
-        DoctorSlot slot = slotId != null ? slotRepo.findById(slotId).orElse(null) : null;
-
-        String apptNum = "APT-" + LocalDate.now().getYear() + "-"
-                       + String.format("%05d", SEQ.getAndIncrement());
+        String apptNumber = "APT-" + LocalDate.now().getYear() + "-"
+                           + String.format("%05d", SEQ.getAndIncrement());
 
         Appointment appt = Appointment.builder()
-            .appointmentNumber(apptNum)
-            .patient(patient)
-            .doctor(doctor)
-            .department(doctor.getDepartment())
-            .branch(doctor.getDepartment().getBranch())
-            .slot(slot)
-            .appointmentDate(date)
-            .appointmentTime(time)
-            .type(type)
+            .appointmentNumber(apptNumber)
+            .patient(patient).doctor(slot.getDoctor()).slot(slot)
+            .appointmentDate(slot.getSlotDate())
+            .appointmentTime(slot.getSlotTime())
+            .durationMinutes(slot.getDurationMinutes())
+            .reasonForVisit(reason)
+            .notes(notes)
             .status(AppointmentStatus.PENDING)
-            .symptoms(symptoms)
-            .consultationFee(doctor.getConsultationFee())
-            .isPaid(false)
             .build();
 
         Appointment saved = appointmentRepo.save(appt);
 
         // Notify doctor
         notificationService.sendAppointmentRequestToDoctor(
-            doctor.getUser().getEmail(), doctor.getUser().getFullName(),
-            patient.getUser().getFullName(), date, time);
+            saved.getDoctor().getUser().getEmail(),
+            saved.getDoctor().getUser().getFullName(),
+            saved.getPatient().getUser().getFullName(),
+            saved.getAppointmentDate(), saved.getAppointmentTime());
 
-        // Confirm to patient
+        // Confirm receipt to patient
         notificationService.sendAppointmentConfirmationToPatient(
-            patient.getUser().getEmail(), patient.getUser().getFullName(),
-            apptNum, doctor.getUser().getFullName(), date, time);
+            saved.getPatient().getUser().getEmail(),
+            saved.getPatient().getUser().getFullName(),
+            apptNumber,
+            saved.getDoctor().getUser().getFullName(),
+            saved.getAppointmentDate(), saved.getAppointmentTime());
 
         return saved;
     }
 
-    // ── CONFIRM (by doctor) ───────────────────────────────
-    @Transactional
-    public void confirmAppointment(Long apptId, String notes, UserPrincipal doctor) {
-        Appointment appt = getAndValidate(apptId);
-        appt.setStatus(AppointmentStatus.CONFIRMED);
-        appt.setDoctorNotes(notes);
-        appt.setApprovedAt(LocalDateTime.now());
-        appointmentRepo.save(appt);
+    // ── DOCTOR ACTIONS ────────────────────────────────────
 
+    @Transactional
+    public void confirmAppointment(Long appointmentId, Long doctorUserId) {
+        Appointment appt = getById(appointmentId);
+        validateDoctorOwnership(appt, doctorUserId);
+        appt.setStatus(AppointmentStatus.CONFIRMED);
+        appointmentRepo.save(appt);
         notificationService.sendAppointmentStatusUpdate(
             appt.getPatient().getUser().getEmail(),
             appt.getPatient().getUser().getFullName(),
             appt.getAppointmentNumber(), "CONFIRMED",
             appt.getAppointmentDate(), appt.getAppointmentTime());
-
-        auditService.log(doctor.getId(), doctor.getUsername(),
-            "CONFIRM_APPOINTMENT", "Appointment", apptId, null, "SUCCESS");
     }
 
-    // ── REJECT (by doctor) ────────────────────────────────
     @Transactional
-    public void rejectAppointment(Long apptId, String reason, UserPrincipal doctor) {
-        Appointment appt = getAndValidate(apptId);
+    public void rejectAppointment(Long appointmentId, Long doctorUserId, String reason) {
+        Appointment appt = getById(appointmentId);
+        validateDoctorOwnership(appt, doctorUserId);
         appt.setStatus(AppointmentStatus.REJECTED);
-        appt.setRejectionReason(reason);
+        appt.setNotes("Rejected: " + reason);
         appointmentRepo.save(appt);
-
         notificationService.sendAppointmentStatusUpdate(
             appt.getPatient().getUser().getEmail(),
             appt.getPatient().getUser().getFullName(),
@@ -122,60 +108,75 @@ public class AppointmentService {
             appt.getAppointmentDate(), appt.getAppointmentTime());
     }
 
-    // ── CANCEL (by patient) ───────────────────────────────
     @Transactional
-    public void cancelAppointment(Long apptId, Long patientUserId) {
-        Appointment appt = getAndValidate(apptId);
-        if (!appt.getPatient().getUser().getId().equals(patientUserId))
+    public void completeAppointment(Long appointmentId, Long doctorUserId) {
+        Appointment appt = getById(appointmentId);
+        validateDoctorOwnership(appt, doctorUserId);
+        appt.setStatus(AppointmentStatus.COMPLETED);
+        appointmentRepo.save(appt);
+    }
+
+    // ── PATIENT ACTIONS ───────────────────────────────────
+
+    @Transactional
+    public void cancelByPatient(Long appointmentId, Long patientUserId) {
+        Appointment appt = getById(appointmentId);
+        Patient patient = patientRepo.findByUserId(patientUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("Patient", "userId", patientUserId));
+        if (!appt.getPatient().getId().equals(patient.getId()))
             throw new BadRequestException("Not your appointment.");
         if (appt.getStatus() == AppointmentStatus.COMPLETED)
             throw new BadRequestException("Cannot cancel a completed appointment.");
         appt.setStatus(AppointmentStatus.CANCELLED);
         appointmentRepo.save(appt);
-    }
-
-    // ── COMPLETE (by doctor) ──────────────────────────────
-    @Transactional
-    public void completeAppointment(Long apptId, UserPrincipal doctor) {
-        Appointment appt = getAndValidate(apptId);
-        appt.setStatus(AppointmentStatus.COMPLETED);
-        appointmentRepo.save(appt);
+        notificationService.sendAppointmentStatusUpdate(
+            appt.getPatient().getUser().getEmail(),
+            appt.getPatient().getUser().getFullName(),
+            appt.getAppointmentNumber(), "CANCELLED",
+            appt.getAppointmentDate(), appt.getAppointmentTime());
     }
 
     // ── QUERIES ───────────────────────────────────────────
-    public Page<Appointment> getDoctorAppointments(Long doctorId, int page) {
-        return appointmentRepo.findByDoctorId(
-            doctorId, PageRequest.of(page, 15, Sort.by("appointmentDate", "appointmentTime")));
+
+    public Page<Appointment> getPatientAppointments(Long patientId, int page) {
+        return appointmentRepo.findByPatientIdOrderByAppointmentDateDescAppointmentTimeDesc(
+            patientId, PageRequest.of(page, 10));
     }
 
     public Page<Appointment> getDoctorPendingAppointments(Long doctorId, int page) {
-        return appointmentRepo.findByDoctorIdAndStatus(
-            doctorId, AppointmentStatus.PENDING,
-            PageRequest.of(page, 15, Sort.by("appointmentDate", "appointmentTime")));
+        return appointmentRepo.findByDoctorIdAndStatus(doctorId, AppointmentStatus.PENDING,
+            PageRequest.of(page, 15, Sort.by("appointmentDate").ascending()
+                .and(Sort.by("appointmentTime").ascending())));
     }
 
-    public List<Appointment> getDoctorTodayAppointments(Long doctorId) {
+    public Page<Appointment> getDoctorAllAppointments(Long doctorId, int page) {
+        return appointmentRepo.findByDoctorIdOrderByAppointmentDateDescAppointmentTimeDesc(
+            doctorId, PageRequest.of(page, 15));
+    }
+
+    // ── NEXT APPOINTMENT for patient dashboard ─────────────
+
+    public Appointment getNextAppointment(Long patientId) {
         return appointmentRepo
-            .findByDoctorIdAndAppointmentDateOrderByAppointmentTime(doctorId, LocalDate.now());
+            .findByPatientIdOrderByAppointmentDateDesc(patientId)
+            .stream()
+            .filter(a -> a.getStatus() == AppointmentStatus.CONFIRMED
+                      || a.getStatus() == AppointmentStatus.PENDING)
+            .filter(a -> !a.getAppointmentDate().isBefore(LocalDate.now()))
+            .findFirst()
+            .orElse(null);
     }
 
-    public Page<Appointment> getPatientAppointments(Long patientId, int page) {
-        return appointmentRepo.findByPatientId(
-            patientId, PageRequest.of(page, 10, Sort.by("appointmentDate").descending()));
-    }
+    // ── HELPERS ───────────────────────────────────────────
 
-    public Page<Appointment> getAllPendingAppointments(int page) {
-        return appointmentRepo.findAllPending(PageRequest.of(page, 15));
-    }
-
-    public Appointment getAppointment(Long id) {
+    public Appointment getById(Long id) {
         return appointmentRepo.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", id));
     }
 
-    // ── PRIVATE HELPERS ───────────────────────────────────
-    private Appointment getAndValidate(Long apptId) {
-        return appointmentRepo.findById(apptId)
-            .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", apptId));
+    private void validateDoctorOwnership(Appointment appt, Long doctorUserId) {
+        Doctor doctor = appt.getDoctor();
+        if (!doctor.getUser().getId().equals(doctorUserId))
+            throw new BadRequestException("Not your appointment.");
     }
 }

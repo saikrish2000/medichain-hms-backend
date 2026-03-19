@@ -545,3 +545,143 @@ body {
 ::-webkit-scrollbar-track { background: var(--clay-bg); }
 ::-webkit-scrollbar-thumb { background: var(--clay-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--clay-primary); }
+
+/* ── ADDITIONAL UTILITIES (added for advanced dashboards) ── */
+
+/* Pulse animation (global) */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(1.2); }
+}
+.pulse-ring {
+  animation: pulse 1.5s infinite;
+}
+
+/* Chart.js container fix */
+.chart-container {
+  position: relative;
+  width: 100%;
+}
+
+/* Tooltip style */
+.clay-tooltip {
+  position: absolute;
+  background: var(--clay-text);
+  color: #fff;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.72rem;
+  font-weight: 700;
+  pointer-events: none;
+  z-index: 999;
+  white-space: nowrap;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--clay-primary), var(--clay-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glassmorphism overlay (for modals over dark bg) */
+.glass-overlay {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-lg);
+}
+
+/* Progress bar */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--clay-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+.progress-primary  { background: var(--clay-primary); }
+.progress-success  { background: var(--clay-success); }
+.progress-warning  { background: var(--clay-warning); }
+.progress-danger   { background: var(--clay-danger); }
+.progress-gradient { background: linear-gradient(90deg, var(--clay-primary), var(--clay-secondary)); }
+
+/* Tag pills */
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--clay-bg);
+  border: 2px solid var(--clay-border);
+  color: var(--clay-text-muted);
+}
+
+/* Divider */
+.clay-divider {
+  height: 2px;
+  background: var(--clay-border);
+  border: none;
+  border-radius: 1px;
+  margin: 1.25rem 0;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+.empty-state-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+.empty-state-title { font-size: 1rem; font-weight: 800; margin-bottom: 0.4rem; }
+.empty-state-sub   { font-size: 0.85rem; color: var(--clay-text-muted); font-weight: 600; }
+
+/* Notification dot on icon buttons */
+.icon-btn-notif {
+  position: relative;
+}
+.icon-btn-notif::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--clay-danger);
+  border: 2px solid #fff;
+}
+
+/* Card hover lift */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 8px 8px 24px rgba(108, 99, 255, 0.2);
+}
+
+/* Status indicator inline */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 0.35rem;
+}
+.status-online  { background: var(--clay-success); }
+.status-away    { background: var(--clay-warning); }
+.status-offline { background: var(--clay-text-muted); }
+.status-busy    { background: var(--clay-danger); }

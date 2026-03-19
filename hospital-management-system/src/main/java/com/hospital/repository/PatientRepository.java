@@ -21,4 +21,8 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
            "LOWER(p.patientIdNumber) LIKE LOWER(CONCAT('%',:q,'%')) OR " +
            "LOWER(u.phone) LIKE LOWER(CONCAT('%',:q,'%'))")
     Page<Patient> search(@Param("q") String query, Pageable pageable);
+
+    // Patients who have had appointments with a specific doctor
+    @Query("SELECT DISTINCT a.patient FROM Appointment a WHERE a.doctor.id = :doctorId")
+    Page<Patient> findByDoctorId(@Param("doctorId") Long doctorId, Pageable pageable);
 }

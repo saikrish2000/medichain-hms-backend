@@ -1,15 +1,13 @@
 package com.hospital.service;
 
 import com.hospital.entity.*;
+import com.hospital.entity.Appointment.AppointmentStatus;
 import com.hospital.entity.Doctor.ApprovalStatus;
-import com.hospital.exception.BadRequestException;
 import com.hospital.exception.ResourceNotFoundException;
 import com.hospital.repository.*;
-import com.hospital.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -18,66 +16,75 @@ import java.util.*;
 @RequiredArgsConstructor
 public class DoctorService {
 
-    private final DoctorRepository        doctorRepo;
-    private final UserRepository           userRepo;
-    private final AppointmentRepository    apptRepo;
-    private final MedicalRecordRepository  recordRepo;
-    private final SlotService              slotService;
+    private final DoctorRepository      doctorRepo;
+    private final AppointmentRepository appointmentRepo;
+    private final MedicalRecordRepository recordRepo;
+    private final PatientRepository     patientRepo;
 
-    // ── PROFILE ───────────────────────────────────────────
-    public Doctor getDoctorByUserId(Long userId) {
-        return doctorRepo.findByUserId(userId)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "userId", userId));
-    }
+    // ── DASHBOARD DATA ────────────────────────────────────
 
-    public Doctor getDoctorById(Long id) {
-        return doctorRepo.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", id));
-    }
+    public Map<String, Object> getDashboardData(Long doctorUserId) {
+        Doctor doctor = doctorRepo.findByUserId(doctorUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "userId", doctorUserId));
 
-    @Transactional
-    public Doctor updateProfile(Long userId, Doctor updated) {
-        Doctor doctor = getDoctorByUserId(userId);
-        doctor.setBio(updated.getBio());
-        doctor.setConsultationFee(updated.getConsultationFee());
-        doctor.setExperienceYears(updated.getExperienceYears());
-        doctor.setQualification(updated.getQualification());
-        doctor.setIsAvailable(updated.getIsAvailable());
-        return doctorRepo.save(doctor);
-    }
+        LocalDate today = LocalDate.now();
 
-    // ── DASHBOARD STATS ───────────────────────────────────
-    public Map<String, Object> getDoctorDashboard(Long doctorId) {
+        long todayCount   = appointmentRepo.countByDoctorIdAndAppointmentDate(doctor.getId(), today);
+        long pendingCount = appointmentRepo.countByDoctorIdAndStatus(doctor.getId(), AppointmentStatus.PENDING);
+        long totalPatients= appointmentRepo.countDistinctPatientsByDoctorId(doctor.getId());
+
+        // Today's appointments for timeline
+        List<Appointment> todayList = appointmentRepo
+            .findByDoctorIdAndAppointmentDateOrderByAppointmentTime(doctor.getId(), today);
+
+        // Pending for quick-approve widget
+        List<Appointment> pendingAppts = appointmentRepo
+            .findByDoctorIdAndStatus(doctor.getId(), AppointmentStatus.PENDING,
+                PageRequest.of(0, 5)).getContent();
+
+        // Featured patient: first confirmed today
+        Patient featuredPatient = null;
+        MedicalRecord featuredRecord = null;
+        if (!todayList.isEmpty()) {
+            featuredPatient = todayList.get(0).getPatient();
+            List<MedicalRecord> records = recordRepo
+                .findByPatientIdOrderByVisitDateDesc(featuredPatient.getId(),
+                    PageRequest.of(0, 1)).getContent();
+            if (!records.isEmpty()) featuredRecord = records.get(0);
+        }
+
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("todayAppointments",
-            apptRepo.findByDoctorIdAndAppointmentDateOrderByAppointmentTime(doctorId, LocalDate.now()));
-        data.put("pendingCount",
-            apptRepo.countByDoctorIdAndStatus(doctorId, Appointment.AppointmentStatus.PENDING));
-        data.put("confirmedCount",
-            apptRepo.countByDoctorIdAndStatus(doctorId, Appointment.AppointmentStatus.CONFIRMED));
-        data.put("completedCount",
-            apptRepo.countByDoctorIdAndStatus(doctorId, Appointment.AppointmentStatus.COMPLETED));
-        data.put("todayCount",
-            apptRepo.countByDoctorIdAndAppointmentDate(doctorId, LocalDate.now()));
-        data.put("weekCalendar",
-            slotService.getWeekCalendar(doctorId, LocalDate.now().with(
-                java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))));
+        data.put("doctorName",       doctor.getUser().getFullName());
+        data.put("specialization",   doctor.getSpecialization().getName());
+        data.put("department",       doctor.getDepartment().getName());
+        data.put("doctor",           doctor);
+        data.put("todayAppointments",todayCount);
+        data.put("pendingCount",     pendingCount);
+        data.put("totalPatients",    totalPatients);
+        data.put("todayList",        todayList);
+        data.put("pendingAppts",     pendingAppts);
+        data.put("featuredPatient",  featuredPatient);
+        data.put("featuredRecord",   featuredRecord);
         return data;
     }
 
-    // ── SEARCH ────────────────────────────────────────────
-    public Page<Doctor> searchDoctors(String query, Long departmentId, Long specializationId, int page) {
-        if (query != null && !query.isBlank())
-            return doctorRepo.search(query, PageRequest.of(page, 12, Sort.by("createdAt").descending()));
-        return doctorRepo.findByApprovalStatus(
-            ApprovalStatus.APPROVED, PageRequest.of(page, 12, Sort.by("createdAt").descending()));
+    // ── PATIENTS ──────────────────────────────────────────
+
+    public Page<Patient> getDoctorPatients(Long doctorUserId, int page) {
+        Doctor doctor = doctorRepo.findByUserId(doctorUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "userId", doctorUserId));
+        return patientRepo.findByDoctorId(doctor.getId(),
+            PageRequest.of(page, 15, Sort.by("id").descending()));
     }
 
-    // ── AVAILABLE DOCTORS ─────────────────────────────────
-    public List<Doctor> getAvailableDoctorsByDepartment(Long departmentId) {
-        return doctorRepo.findByDepartmentId(departmentId)
-            .stream()
-            .filter(d -> d.getApprovalStatus() == ApprovalStatus.APPROVED && Boolean.TRUE.equals(d.getIsAvailable()))
-            .toList();
+    // ── SEARCH ────────────────────────────────────────────
+
+    public Page<Doctor> search(String q, int page) {
+        return doctorRepo.search(q, PageRequest.of(page, 20));
+    }
+
+    public Doctor getByUserId(Long userId) {
+        return doctorRepo.findByUserId(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "userId", userId));
     }
 }

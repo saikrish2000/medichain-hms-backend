@@ -7,210 +7,202 @@ import com.hospital.exception.ResourceNotFoundException;
 import com.hospital.repository.*;
 import com.hospital.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class AdminService {
 
-    private final UserRepository           userRepository;
-    private final DoctorRepository         doctorRepository;
-    private final NurseRepository          nurseRepository;
-    private final PatientRepository        patientRepository;
-    private final DepartmentRepository     departmentRepository;
-    private final SpecializationRepository specializationRepository;
-    private final HospitalBranchRepository branchRepository;
+    private final DoctorRepository         doctorRepo;
+    private final NurseRepository          nurseRepo;
+    private final PatientRepository        patientRepo;
+    private final UserRepository           userRepo;
+    private final DepartmentRepository     departmentRepo;
+    private final SpecializationRepository specializationRepo;
+    private final HospitalBranchRepository branchRepo;
+    private final AppointmentRepository    appointmentRepo;
     private final NotificationService      notificationService;
     private final AuditService             auditService;
 
-    // ── DASHBOARD STATS ────────────────────────────────────
+    // ── DASHBOARD ─────────────────────────────────────────
+
     public Map<String, Object> getDashboardStats() {
         Map<String, Object> stats = new LinkedHashMap<>();
-        stats.put("totalDoctors",      doctorRepository.countByApprovalStatus(ApprovalStatus.APPROVED));
-        stats.put("pendingDoctors",    doctorRepository.countByApprovalStatus(ApprovalStatus.PENDING));
-        stats.put("totalNurses",       nurseRepository.countByApprovalStatus(Nurse.ApprovalStatus.APPROVED));
-        stats.put("pendingNurses",     nurseRepository.countByApprovalStatus(Nurse.ApprovalStatus.PENDING));
-        stats.put("totalPatients",     patientRepository.count());
-        stats.put("totalBranches",     branchRepository.countByIsActive(true));
-        stats.put("totalDepartments",  departmentRepository.countByIsActive(true));
 
-        // Recent pending approvals
-        stats.put("pendingDoctorList",
-            doctorRepository.findByApprovalStatus(ApprovalStatus.PENDING,
-                PageRequest.of(0, 5, Sort.by("createdAt").descending())).getContent());
-        stats.put("pendingNurseList",
-            nurseRepository.findByApprovalStatus(Nurse.ApprovalStatus.PENDING,
-                PageRequest.of(0, 5, Sort.by("createdAt").descending())).getContent());
+        long totalDoctors  = doctorRepo.countByApprovalStatus(ApprovalStatus.APPROVED);
+        long pendingDoctors= doctorRepo.countByApprovalStatus(ApprovalStatus.PENDING);
+        long pendingNurses = nurseRepo.countByApprovalStatus(Nurse.ApprovalStatus.PENDING);
+        long totalPatients = patientRepo.count();
+        long totalBranches = branchRepo.count();
+
+        stats.put("totalDoctors",     totalDoctors);
+        stats.put("pendingDoctors",   pendingDoctors);
+        stats.put("pendingNurses",    pendingNurses);
+        stats.put("totalPatients",    totalPatients);
+        stats.put("totalBranches",    totalBranches);
+        stats.put("totalDepartments", departmentRepo.countByIsActive(true));
+        stats.put("todayAppointments", 0L); // Placeholder — billing module calculates this
+        stats.put("todayRevenue",      "0");
+
+        // Pending approvals list (first 5 doctors)
+        stats.put("pendingApprovals",
+            doctorRepo.findByApprovalStatus(ApprovalStatus.PENDING,
+                PageRequest.of(0, 5)).getContent());
+
+        // Recent patients
+        stats.put("recentPatients",
+            patientRepo.findAll(PageRequest.of(0, 5,
+                Sort.by("id").descending())).getContent());
+
         return stats;
     }
 
-    // ── DOCTOR APPROVALS ───────────────────────────────────
+    // ── DOCTOR APPROVALS ──────────────────────────────────
+
     public Page<Doctor> getPendingDoctors(int page) {
-        return doctorRepository.findByApprovalStatus(
-            ApprovalStatus.PENDING,
-            PageRequest.of(page, 10, Sort.by("createdAt").descending()));
+        return doctorRepo.findByApprovalStatus(ApprovalStatus.PENDING,
+            PageRequest.of(page, 15, Sort.by("id").descending()));
     }
 
-    public Page<Doctor> getAllDoctors(String search, int page) {
-        if (search != null && !search.isBlank())
-            return doctorRepository.search(search,
-                PageRequest.of(page, 10, Sort.by("createdAt").descending()));
-        return doctorRepository.findAll(
-            PageRequest.of(page, 10, Sort.by("createdAt").descending()));
+    public Page<Doctor> getAllDoctors(ApprovalStatus status, int page) {
+        if (status != null)
+            return doctorRepo.findByApprovalStatus(status, PageRequest.of(page, 20));
+        return doctorRepo.findAll(PageRequest.of(page, 20, Sort.by("id").descending()));
     }
 
     @Transactional
     public void approveDoctor(Long doctorId, UserPrincipal admin) {
-        Doctor doctor = doctorRepository.findById(doctorId)
+        Doctor doctor = doctorRepo.findById(doctorId)
             .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", doctorId));
-
-        if (doctor.getApprovalStatus() == ApprovalStatus.APPROVED)
-            throw new BadRequestException("Doctor is already approved.");
-
-        User adminUser = userRepository.findById(admin.getId()).orElseThrow();
         doctor.setApprovalStatus(ApprovalStatus.APPROVED);
-        doctor.setApprovedBy(adminUser);
-        doctor.setApprovedAt(LocalDateTime.now());
-        doctor.setRejectionReason(null);
-        doctor.getUser().setIsVerified(true);
-        doctorRepository.save(doctor);
-
+        doctor.setIsAvailable(true);
+        doctorRepo.save(doctor);
+        auditService.log(admin.getUsername(), "APPROVE",
+            "Doctor", doctorId, "Doctor approved: " + doctor.getUser().getFullName());
         notificationService.sendApprovalNotification(
             doctor.getUser().getEmail(),
             doctor.getUser().getFullName(),
             "Doctor");
-        auditService.log(admin.getId(), admin.getUsername(),
-            "APPROVE_DOCTOR", "Doctor", doctorId, null, "SUCCESS");
     }
 
     @Transactional
     public void rejectDoctor(Long doctorId, String reason, UserPrincipal admin) {
-        Doctor doctor = doctorRepository.findById(doctorId)
+        Doctor doctor = doctorRepo.findById(doctorId)
             .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", doctorId));
-
         doctor.setApprovalStatus(ApprovalStatus.REJECTED);
-        doctor.setRejectionReason(reason);
-        doctorRepository.save(doctor);
-
+        doctorRepo.save(doctor);
+        auditService.log(admin.getUsername(), "REJECT",
+            "Doctor", doctorId, "Rejected: " + reason);
         notificationService.sendRejectionNotification(
             doctor.getUser().getEmail(),
-            doctor.getUser().getFullName(), reason);
-        auditService.log(admin.getId(), admin.getUsername(),
-            "REJECT_DOCTOR", "Doctor", doctorId, null, "SUCCESS");
+            doctor.getUser().getFullName(),
+            reason);
     }
 
     @Transactional
     public void suspendDoctor(Long doctorId, String reason, UserPrincipal admin) {
-        Doctor doctor = doctorRepository.findById(doctorId)
+        Doctor doctor = doctorRepo.findById(doctorId)
             .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", doctorId));
         doctor.setApprovalStatus(ApprovalStatus.SUSPENDED);
-        doctor.setRejectionReason(reason);
-        doctorRepository.save(doctor);
-        auditService.log(admin.getId(), admin.getUsername(),
-            "SUSPEND_DOCTOR", "Doctor", doctorId, null, "SUCCESS");
+        doctor.setIsAvailable(false);
+        doctorRepo.save(doctor);
+        auditService.log(admin.getUsername(), "SUSPEND",
+            "Doctor", doctorId, "Suspended: " + reason);
     }
 
-    // ── NURSE APPROVALS ────────────────────────────────────
+    // ── NURSE APPROVALS ───────────────────────────────────
+
     public Page<Nurse> getPendingNurses(int page) {
-        return nurseRepository.findByApprovalStatus(
-            Nurse.ApprovalStatus.PENDING,
-            PageRequest.of(page, 10, Sort.by("createdAt").descending()));
+        return nurseRepo.findByApprovalStatus(Nurse.ApprovalStatus.PENDING,
+            PageRequest.of(page, 15, Sort.by("id").descending()));
     }
 
     @Transactional
     public void approveNurse(Long nurseId, UserPrincipal admin) {
-        Nurse nurse = nurseRepository.findById(nurseId)
+        Nurse nurse = nurseRepo.findById(nurseId)
             .orElseThrow(() -> new ResourceNotFoundException("Nurse", "id", nurseId));
-
-        User adminUser = userRepository.findById(admin.getId()).orElseThrow();
         nurse.setApprovalStatus(Nurse.ApprovalStatus.APPROVED);
-        nurse.setApprovedBy(adminUser);
-        nurse.setApprovedAt(LocalDateTime.now());
-        nurse.getUser().setIsVerified(true);
-        nurseRepository.save(nurse);
-
+        nurseRepo.save(nurse);
+        auditService.log(admin.getUsername(), "APPROVE",
+            "Nurse", nurseId, "Nurse approved: " + nurse.getUser().getFullName());
         notificationService.sendApprovalNotification(
-            nurse.getUser().getEmail(), nurse.getUser().getFullName(), "Nurse");
-        auditService.log(admin.getId(), admin.getUsername(),
-            "APPROVE_NURSE", "Nurse", nurseId, null, "SUCCESS");
+            nurse.getUser().getEmail(),
+            nurse.getUser().getFullName(),
+            "Nurse");
     }
 
     @Transactional
     public void rejectNurse(Long nurseId, String reason, UserPrincipal admin) {
-        Nurse nurse = nurseRepository.findById(nurseId)
+        Nurse nurse = nurseRepo.findById(nurseId)
             .orElseThrow(() -> new ResourceNotFoundException("Nurse", "id", nurseId));
         nurse.setApprovalStatus(Nurse.ApprovalStatus.REJECTED);
-        nurse.setRejectionReason(reason);
-        nurseRepository.save(nurse);
-        notificationService.sendRejectionNotification(
-            nurse.getUser().getEmail(), nurse.getUser().getFullName(), reason);
+        nurseRepo.save(nurse);
+        auditService.log(admin.getUsername(), "REJECT",
+            "Nurse", nurseId, "Rejected: " + reason);
     }
 
-    // ── DEPARTMENTS ────────────────────────────────────────
+    // ── DEPARTMENTS ───────────────────────────────────────
+
     public List<Department> getAllDepartments() {
-        return departmentRepository.findAll(Sort.by("name"));
+        return departmentRepo.findAll(Sort.by("name"));
     }
 
     @Transactional
     public Department createDepartment(Department dept) {
-        return departmentRepository.save(dept);
+        return departmentRepo.save(dept);
     }
 
-    @Transactional
-    public Department updateDepartment(Long id, Department updated) {
-        Department dept = departmentRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Department", "id", id));
-        dept.setName(updated.getName());
-        dept.setCode(updated.getCode());
-        dept.setDescription(updated.getDescription());
-        dept.setFloorNumber(updated.getFloorNumber());
-        dept.setIsActive(updated.getIsActive());
-        return departmentRepository.save(dept);
-    }
+    // ── SPECIALIZATIONS ───────────────────────────────────
 
-    // ── SPECIALIZATIONS ────────────────────────────────────
     public List<Specialization> getAllSpecializations() {
-        return specializationRepository.findAll(Sort.by("name"));
+        return specializationRepo.findAll(Sort.by("name"));
     }
 
     @Transactional
     public Specialization createSpecialization(Specialization spec) {
-        return specializationRepository.save(spec);
+        return specializationRepo.save(spec);
     }
 
     // ── BRANCHES ──────────────────────────────────────────
+
     public List<HospitalBranch> getAllBranches() {
-        return branchRepository.findAll(Sort.by("name"));
+        return branchRepo.findAll(Sort.by("name"));
     }
 
     @Transactional
     public HospitalBranch createBranch(HospitalBranch branch) {
-        if (branchRepository.existsByCode(branch.getCode()))
-            throw new BadRequestException("Branch code already exists.");
-        return branchRepository.save(branch);
+        return branchRepo.save(branch);
     }
 
-    // ── USERS MANAGEMENT ──────────────────────────────────
+    // ── USERS ─────────────────────────────────────────────
+
     public Page<User> getAllUsers(int page) {
-        return userRepository.findAll(
-            PageRequest.of(page, 15, Sort.by("createdAt").descending()));
+        return userRepo.findAll(PageRequest.of(page, 20, Sort.by("id").descending()));
     }
 
     @Transactional
     public void toggleUserStatus(Long userId, UserPrincipal admin) {
-        User user = userRepository.findById(userId)
+        User user = userRepo.findById(userId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         user.setIsActive(!user.getIsActive());
-        userRepository.save(user);
-        auditService.log(admin.getId(), admin.getUsername(),
-            user.getIsActive() ? "ACTIVATE_USER" : "DEACTIVATE_USER",
-            "User", userId, null, "SUCCESS");
+        userRepo.save(user);
+        auditService.log(admin.getUsername(), "UPDATE",
+            "User", userId,
+            "User " + (user.getIsActive() ? "activated" : "deactivated"));
+    }
+
+    // ── PATIENTS ──────────────────────────────────────────
+
+    public Page<Patient> getAllPatients(int page) {
+        return patientRepo.findAll(PageRequest.of(page, 20, Sort.by("id").descending()));
+    }
+
+    public Page<Patient> searchPatients(String q, int page) {
+        return patientRepo.search(q, PageRequest.of(page, 20));
     }
 }

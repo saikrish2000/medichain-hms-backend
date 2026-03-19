@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head>
+  <title>Hospital Digital Twin</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<th:block layout:fragment="topbar-title">🏗️ Digital Twin Simulator</th:block>
+
+<th:block layout:fragment="content">
+<style>
+  .twin-header{background:linear-gradient(135deg,#1E2240 0%,#2D3250 50%,#6C63FF 100%);border-radius:var(--radius-xl);padding:2rem;color:#fff;margin-bottom:1.5rem;position:relative;overflow:hidden;}
+  .twin-header::before{content:'';position:absolute;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.03);top:-100px;right:-50px;}
+  .twin-header::after{content:'';position:absolute;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.05);bottom:-80px;left:100px;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1rem;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+  .card{background:#fff;border-radius:var(--radius-lg);border:2.5px solid var(--clay-border);box-shadow:var(--shadow-card);overflow:hidden;}
+  .card-header{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.25rem;border-bottom:2px solid var(--clay-border);}
+  .card-title{font-size:.875rem;font-weight:800;}
+  /* Scenario cards */
+  .scenario-card{background:#fff;border:2.5px solid var(--clay-border);border-radius:var(--radius-lg);padding:1.25rem;box-shadow:var(--shadow-card);transition:all .2s;cursor:pointer;}
+  .scenario-card:hover{transform:translate(-3px,-3px);box-shadow:9px 9px 0 #D0CEFF;}
+  .scenario-card.active{border-color:var(--clay-primary);background:var(--pastel-purple);}
+  .scenario-icon{width:52px;height:52px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:.85rem;border:2.5px solid var(--clay-border);}
+  /* Hospital floor map */
+  .floor-map{background:var(--clay-bg);border:2.5px solid var(--clay-border);border-radius:var(--radius-lg);padding:1.25rem;}
+  .floor-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:.5rem;margin-top:1rem;}
+  .floor-room{border-radius:10px;padding:.5rem;text-align:center;border:2px solid transparent;font-size:.65rem;font-weight:800;cursor:pointer;transition:all .15s;}
+  .floor-room:hover{transform:scale(1.05);}
+  .room-icu    {background:#FFE4EC;border-color:#FF6584;color:#D63939;}
+  .room-general{background:#D6F5EC;border-color:#43D9A2;color:#1A9E74;}
+  .room-ot     {background:#FFF4CC;border-color:#FFBE0B;color:#9C7400;}
+  .room-lab    {background:#D4F1F9;border-color:#48CAE4;color:#0B87A8;}
+  .room-pharm  {background:#E8E4FF;border-color:#6C63FF;color:var(--clay-primary);}
+  .room-er     {background:#FFE4EC;border-color:#FF5C5C;color:#D63939;}
+  .room-empty  {background:var(--clay-bg);border-color:var(--clay-border);color:var(--clay-text-muted);opacity:.5;}
+  /* Prediction panels */
+  .pred-row{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:1.5px solid var(--clay-border);}
+  .pred-row:last-child{border-bottom:none;}
+  .badge{display:inline-flex;padding:.18rem .6rem;border-radius:var(--radius-full);font-size:.65rem;font-weight:800;text-transform:uppercase;}
+  .badge-risk  {background:var(--pastel-pink);color:#D63939;}
+  .badge-warn  {background:var(--pastel-yellow);color:#9C7400;}
+  .badge-ok    {background:var(--pastel-green);color:#1A9E74;}
+  /* Simulation controls */
+  .sim-control{background:var(--clay-bg);border:2.5px solid var(--clay-border);border-radius:var(--radius-md);padding:.85rem 1.25rem;}
+  .range-slider{width:100%;accent-color:var(--clay-primary);margin:.4rem 0;}
+</style>
+
+<!-- Header -->
+<div class="twin-header">
+  <div style="position:relative;z-index:2;">
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;">
+      <div style="font-size:2rem;">🏗️</div>
+      <div>
+        <h1 style="font-size:1.5rem;font-weight:900;">Hospital Digital Twin</h1>
+        <div style="font-size:.82rem;opacity:.75;">Real-time virtual simulation of your hospital — test scenarios risk-free</div>
+      </div>
+      <div style="margin-left:auto;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.2);border-radius:9999px;padding:.35rem .85rem;font-size:.72rem;font-weight:800;">
+        🔴 SIMULATION MODE
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:.75rem;">
+      <div style="background:rgba(255,255,255,.1);border-radius:var(--radius-md);padding:.75rem;backdrop-filter:blur(8px);">
+        <div style="font-size:1.3rem;font-weight:900;">247</div>
+        <div style="font-size:.68rem;opacity:.75;font-weight:700;text-transform:uppercase;letter-spacing:.3px;">Simulated Patients</div>
+      </div>
+      <div style="background:rgba(255,255,255,.1);border-radius:var(--radius-md);padding:.75rem;backdrop-filter:blur(8px);">
+        <div style="font-size:1.3rem;font-weight:900;">88</div>
+        <div style="font-size:.68rem;opacity:.75;font-weight:700;text-transform:uppercase;letter-spacing:.3px;">Total Beds Modelled</div>
+      </div>
+      <div style="background:rgba(255,255,255,.1);border-radius:var(--radius-md);padding:.75rem;backdrop-filter:blur(8px);">
+        <div style="font-size:1.3rem;font-weight:900;">6</div>
+        <div style="font-size:.68rem;opacity:.75;font-weight:700;text-transform:uppercase;letter-spacing:.3px;">Branches Included</div>
+      </div>
+      <div style="background:rgba(255,255,255,.1);border-radius:var(--radius-md);padding:.75rem;backdrop-filter:blur(8px);">
+        <div style="font-size:1.3rem;font-weight:900;">94%</div>
+        <div style="font-size:.68rem;opacity:.75;font-weight:700;text-transform:uppercase;letter-spacing:.3px;">Model Accuracy</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scenario Selection -->
+<div style="margin-bottom:1rem;">
+  <div style="font-size:.82rem;font-weight:800;color:var(--clay-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.85rem;">🎯 Select Simulation Scenario</div>
+  <div class="grid-3">
+    <div class="scenario-card active" onclick="selectScenario(this,'emergency')">
+      <div class="scenario-icon" style="background:var(--pastel-pink);">🚨</div>
+      <div style="font-weight:800;font-size:.9rem;">Mass Casualty Event</div>
+      <div style="font-size:.78rem;color:var(--clay-text-muted);margin-top:.3rem;">Simulate 50-patient surge — test ER capacity, staff allocation, and resource needs.</div>
+      <div style="margin-top:.75rem;font-size:.68rem;font-weight:800;color:#D63939;background:var(--pastel-pink);border-radius:9999px;padding:.2rem .6rem;display:inline-block;">HIGH STRESS</div>
+    </div>
+    <div class="scenario-card" onclick="selectScenario(this,'seasonal')">
+      <div class="scenario-icon" style="background:var(--pastel-blue);">🌡️</div>
+      <div style="font-weight:800;font-size:.9rem;">Seasonal Disease Spike</div>
+      <div style="font-size:.78rem;color:var(--clay-text-muted);margin-top:.3rem;">Model a flu/dengue surge 3 weeks ahead — adjust inventory and staff proactively.</div>
+      <div style="margin-top:.75rem;font-size:.68rem;font-weight:800;color:#0B87A8;background:var(--pastel-blue);border-radius:9999px;padding:.2rem .6rem;display:inline-block;">PREDICTIVE</div>
+    </div>
+    <div class="scenario-card" onclick="selectScenario(this,'flow')">
+      <div class="scenario-icon" style="background:var(--pastel-green);">🔄</div>
+      <div style="font-weight:800;font-size:.9rem;">Patient Flow Optimisation</div>
+      <div style="font-size:.78rem;color:var(--clay-text-muted);margin-top:.3rem;">Rearrange departments and staff to reduce average wait time below 15 minutes.</div>
+      <div style="margin-top:.75rem;font-size:.68rem;font-weight:800;color:#1A9E74;background:var(--pastel-green);border-radius:9999px;padding:.2rem .6rem;display:inline-block;">OPTIMISE</div>
+    </div>
+  </div>
+</div>
+
+<!-- Floor Map + Simulation Controls -->
+<div class="grid-2">
+  <!-- Virtual Hospital Map -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">🗺️ Virtual Hospital Floor Map</div>
+      <span style="font-size:.68rem;font-weight:700;color:var(--clay-text-muted);">Click a room for details</span>
+    </div>
+    <div style="padding:1rem;">
+      <div style="font-size:.68rem;font-weight:800;color:var(--clay-text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.5rem;">Ground Floor — Branch 1</div>
+      <div class="floor-grid">
+        <div class="floor-room room-er"    onclick="roomClick('ER')">🚨<br>ER</div>
+        <div class="floor-room room-er"    onclick="roomClick('ER-2')">🚨<br>Triage</div>
+        <div class="floor-room room-ot"    onclick="roomClick('OT-1')">🏥<br>OT 1</div>
+        <div class="floor-room room-ot"    onclick="roomClick('OT-2')">🏥<br>OT 2</div>
+        <div class="floor-room room-icu"   onclick="roomClick('ICU')">❤️<br>ICU</div>
+        <div class="floor-room room-lab"   onclick="roomClick('LAB')">🧬<br>Lab</div>
+        <div class="floor-room room-pharm" onclick="roomClick('PHARM')">💊<br>Pharm</div>
+        <div class="floor-room room-empty">—</div>
+        <div class="floor-room room-general" onclick="roomClick('W1')">🛏<br>Ward 1</div>
+        <div class="floor-room room-general" onclick="roomClick('W2')">🛏<br>Ward 2</div>
+        <div class="floor-room room-general" onclick="roomClick('W3')">🛏<br>Ward 3</div>
+        <div class="floor-room room-general" onclick="roomClick('W4')">🛏<br>Ward 4</div>
+        <div class="floor-room room-general" onclick="roomClick('MAT')">👶<br>Maternity</div>
+        <div class="floor-room room-general" onclick="roomClick('PED')">🧒<br>Paeds</div>
+        <div class="floor-room room-lab"   onclick="roomClick('XRAY')">🩻<br>X-Ray</div>
+        <div class="floor-room room-lab"   onclick="roomClick('MRI')">🧲<br>MRI</div>
+      </div>
+      <!-- Legend -->
+      <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem;">
+        <div style="display:flex;align-items:center;gap:.3rem;font-size:.65rem;font-weight:700;"><div style="width:10px;height:10px;border-radius:3px;background:#FF6584;"></div>Critical/ER</div>
+        <div style="display:flex;align-items:center;gap:.3rem;font-size:.65rem;font-weight:700;"><div style="width:10px;height:10px;border-radius:3px;background:#FFBE0B;"></div>OT</div>
+        <div style="display:flex;align-items:center;gap:.3rem;font-size:.65rem;font-weight:700;"><div style="width:10px;height:10px;border-radius:3px;background:#43D9A2;"></div>General</div>
+        <div style="display:flex;align-items:center;gap:.3rem;font-size:.65rem;font-weight:700;"><div style="width:10px;height:10px;border-radius:3px;background:#48CAE4;"></div>Diagnostics</div>
+        <div style="display:flex;align-items:center;gap:.3rem;font-size:.65rem;font-weight:700;"><div style="width:10px;height:10px;border-radius:3px;background:#6C63FF;"></div>Pharmacy</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Simulation Controls + Results -->
+  <div style="display:flex;flex-direction:column;gap:1rem;">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">⚙️ Simulation Controls</div>
+        <button onclick="runSimulation()" class="clay-btn clay-btn-primary" style="padding:.35rem .85rem;font-size:.78rem;">▶ Run</button>
+      </div>
+      <div style="padding:1rem;">
+        <div class="sim-control" style="margin-bottom:.75rem;">
+          <div style="font-size:.72rem;font-weight:800;color:var(--clay-text-muted);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.3px;">Patient Surge Volume</div>
+          <input type="range" min="10" max="200" value="50" class="range-slider" id="surgeSlider" oninput="document.getElementById('surgeVal').textContent=this.value"/>
+          <div style="display:flex;justify-content:space-between;font-size:.7rem;font-weight:700;color:var(--clay-text-muted);">
+            <span>10</span><span id="surgeVal" style="color:var(--clay-primary);">50</span><span>200</span>
+          </div>
+        </div>
+        <div class="sim-control" style="margin-bottom:.75rem;">
+          <div style="font-size:.72rem;font-weight:800;color:var(--clay-text-muted);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.3px;">Staff Availability</div>
+          <input type="range" min="50" max="100" value="80" class="range-slider" id="staffSlider" oninput="document.getElementById('staffVal').textContent=this.value+'%'"/>
+          <div style="display:flex;justify-content:space-between;font-size:.7rem;font-weight:700;color:var(--clay-text-muted);">
+            <span>50%</span><span id="staffVal" style="color:var(--clay-primary);">80%</span><span>100%</span>
+          </div>
+        </div>
+        <div class="sim-control">
+          <div style="font-size:.72rem;font-weight:800;color:var(--clay-text-muted);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.3px;">Simulation Time Window</div>
+          <select class="clay-input clay-select" style="font-size:.8rem;padding:.5rem .85rem;">
+            <option>Next 4 hours</option>
+            <option selected>Next 24 hours</option>
+            <option>Next 7 days</option>
+            <option>Next 30 days</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Simulation Results -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📊 Simulation Results</div>
+        <span id="simStatus" style="background:var(--pastel-green);color:#1A9E74;border:2px solid #43D9A2;border-radius:9999px;padding:.12rem .55rem;font-size:.62rem;font-weight:800;">READY</span>
+      </div>
+      <div id="simResults">
+        <div class="pred-row">
+          <div><div style="font-weight:700;font-size:.8rem;">🏥 ER Overflow Risk</div><div style="font-size:.68rem;color:var(--clay-text-muted);">Projected capacity breach at hour 3</div></div>
+          <span class="badge badge-risk">HIGH</span>
+        </div>
+        <div class="pred-row">
+          <div><div style="font-weight:700;font-size:.8rem;">👨‍⚕️ Doctor Shortage</div><div style="font-size:.68rem;color:var(--clay-text-muted);">+4 doctors needed for surge</div></div>
+          <span class="badge badge-warn">WARN</span>
+        </div>
+        <div class="pred-row">
+          <div><div style="font-weight:700;font-size:.8rem;">💊 Drug Stock (Paracetamol)</div><div style="font-size:.68rem;color:var(--clay-text-muted);">Will deplete in 6h at current rate</div></div>
+          <span class="badge badge-warn">WARN</span>
+        </div>
+        <div class="pred-row">
+          <div><div style="font-weight:700;font-size:.8rem;">🩸 Blood Bank (O-)</div><div style="font-size:.68rem;color:var(--clay-text-muted);">Current stock sufficient for 8h</div></div>
+          <span class="badge badge-ok">OK</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Predictive Charts Row -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header"><div class="card-title">📈 Predicted Patient Inflow (Next 7 Days)</div></div>
+    <div style="padding:1rem;"><canvas id="inflowChart" height="150"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">🦠 Seasonal Disease Forecast</div></div>
+    <div style="padding:1rem;"><canvas id="diseaseChart" height="150"></canvas></div>
+  </div>
+</div>
+</th:block>
+
+<th:block layout:fragment="scripts">
+<script>
+function selectScenario(el,type){
+  document.querySelectorAll('.scenario-card').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+}
+function roomClick(room){
+  const info={
+    'ER':'Emergency Room — 8/10 beds · 3 critical patients · 2 doctors on duty',
+    'ICU':'Intensive Care — 4/6 beds · All stable · Nurse: 1:2 ratio',
+    'OT-1':'Operating Theatre 1 — IN USE · Orthopaedic surgery · 2h remaining',
+    'OT-2':'Operating Theatre 2 — IN USE · Appendectomy · 45min remaining',
+    'LAB':'Pathology Lab — 14 tests pending · Results in 2h',
+    'PHARM':'Pharmacy — 1,240 items in stock · 2 prescriptions pending',
+    'W1':'Ward 1 — 8/10 beds · General medicine',
+    'W2':'Ward 2 — 7/10 beds · Post-surgical',
+    'W3':'Ward 3 — 5/8 beds · Assigned to Nurse Priya',
+    'MAT':'Maternity — 9/10 beds · ⚠ Near capacity',
+    'MRI':'MRI Suite — 1 scan in progress · Next slot: 15:00',
+  };
+  alert((info[room]||room+' — Room details'));
+}
+function runSimulation(){
+  const status=document.getElementById('simStatus');
+  status.style.background='var(--pastel-yellow)';status.style.color='#9C7400';status.style.borderColor='#FFBE0B';status.textContent='RUNNING...';
+  setTimeout(()=>{
+    status.style.background='var(--pastel-green)';status.style.color='#1A9E74';status.style.borderColor='#43D9A2';status.textContent='COMPLETE';
+    alert('✅ Simulation complete!\n\nKey findings:\n• ER will overflow at hour 3 — add 2 beds\n• Drug stock for Paracetamol needs restock\n• Recommend 4 additional doctors for the surge window\n• Blood Bank stock sufficient');
+  },2000);
+}
+
+new Chart(document.getElementById('inflowChart'),{
+  type:'line',
+  data:{
+    labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+    datasets:[
+      {label:'Historical',data:[85,92,78,103,88,112,95],borderColor:'rgba(108,99,255,.4)',borderDash:[5,5],borderWidth:2,tension:.4,pointRadius:0},
+      {label:'Predicted',data:[90,98,82,115,94,118,101],borderColor:'#6C63FF',backgroundColor:'rgba(108,99,255,.1)',borderWidth:2.5,tension:.4,fill:true}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{family:'Nunito',weight:'700'},boxWidth:10}}},scales:{x:{grid:{display:false},ticks:{font:{family:'Nunito',weight:'700'},color:'#7B7F9E'}},y:{ticks:{font:{family:'Nunito',weight:'700'},color:'#7B7F9E'}}}}
+});
+
+new Chart(document.getElementById('diseaseChart'),{
+  type:'bar',
+  data:{
+    labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    datasets:[
+      {label:'Flu',data:[45,38,28,15,8,5,4,6,12,22,38,50],backgroundColor:'rgba(255,101,132,.7)',borderRadius:4},
+      {label:'Dengue',data:[5,4,3,8,18,35,42,38,28,15,8,5],backgroundColor:'rgba(255,190,11,.7)',borderRadius:4}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{family:'Nunito',weight:'700'},boxWidth:10}}},scales:{x:{grid:{display:false},stacked:true,ticks:{font:{family:'Nunito',weight:'700'},color:'#7B7F9E'}},y:{stacked:true,ticks:{font:{family:'Nunito',weight:'700'},color:'#7B7F9E'}}}}
+});
+</script>
+</th:block>
+</html>
