@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head>
+  <title>Workforce AI</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<th:block layout:fragment="topbar-title">🤖 Workforce AI Optimisation</th:block>
+
+<th:block layout:fragment="content">
+<style>
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.4rem;}
+  .stat-card{background:#fff;border-radius:var(--radius-lg);border:2.5px solid var(--clay-border);padding:1.1rem 1.25rem;box-shadow:var(--shadow-card);display:flex;align-items:center;gap:.85rem;}
+  .stat-icon{width:48px;height:48px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
+  .stat-value{font-size:1.7rem;font-weight:900;line-height:1;}
+  .stat-label{font-size:.68rem;font-weight:800;color:var(--clay-text-muted);text-transform:uppercase;letter-spacing:.4px;margin-top:.15rem;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1rem;}
+  .card{background:#fff;border-radius:var(--radius-lg);border:2.5px solid var(--clay-border);box-shadow:var(--shadow-card);overflow:hidden;}
+  .card-header{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.25rem;border-bottom:2px solid var(--clay-border);}
+  .card-title{font-size:.875rem;font-weight:800;}
+  .staff-row{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;border-bottom:1.5px solid var(--clay-border);}
+  .staff-row:last-child{border-bottom:none;}
+  .staff-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;color:#fff;flex-shrink:0;}
+  .shift-bar{flex:1;height:8px;background:var(--clay-border);border-radius:4px;overflow:hidden;}
+  .shift-fill{height:100%;border-radius:4px;}
+  .badge{display:inline-flex;padding:.18rem .6rem;border-radius:var(--radius-full);font-size:.65rem;font-weight:800;text-transform:uppercase;}
+  .badge-ok  {background:var(--pastel-green); color:#1A9E74;}
+  .badge-warn{background:var(--pastel-yellow);color:#9C7400;}
+  .badge-risk{background:var(--pastel-pink);  color:#D63939;}
+  .ai-rec{background:linear-gradient(135deg,var(--pastel-purple),var(--pastel-blue));border:2.5px solid var(--clay-border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1rem;display:flex;gap:1rem;align-items:flex-start;}
+  .ai-icon{width:44px;height:44px;border-radius:var(--radius-md);background:var(--clay-primary);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
+  .sched-grid{display:grid;grid-template-columns:100px repeat(7,1fr);gap:2px;padding:1rem;}
+  .sched-header{background:var(--pastel-purple);border-radius:8px;padding:.4rem;text-align:center;font-size:.65rem;font-weight:800;color:var(--clay-primary);}
+  .sched-label{display:flex;align-items:center;font-size:.72rem;font-weight:700;padding:.3rem .5rem;color:var(--clay-text-muted);}
+  .sched-cell{border-radius:8px;padding:.4rem;text-align:center;font-size:.6rem;font-weight:800;cursor:pointer;transition:all .15s;}
+  .sched-cell:hover{opacity:.8;}
+  .shift-m{background:#D6F5EC;color:#1A9E74;}
+  .shift-e{background:#D4F1F9;color:#0B87A8;}
+  .shift-n{background:#E8E4FF;color:var(--clay-primary);}
+  .shift-off{background:var(--clay-bg);color:var(--clay-text-muted);border:1.5px dashed var(--clay-border);}
+  .shift-gap{background:var(--pastel-pink);color:#D63939;border:1.5px solid #FF6584;}
+</style>
+
+<!-- AI Hero Banner -->
+<div style="background:linear-gradient(135deg,#1E2240,#6C63FF);border-radius:var(--radius-xl);padding:1.75rem 2rem;color:#fff;margin-bottom:1.5rem;display:flex;align-items:center;gap:2rem;">
+  <div style="font-size:3rem;">🤖</div>
+  <div style="flex:1;">
+    <h1 style="font-size:1.4rem;font-weight:900;">AI Workforce Optimisation</h1>
+    <p style="font-size:.85rem;opacity:.8;margin-top:.2rem;">Machine-learning driven staff scheduling based on predicted patient inflow, shift compliance, and burnout prevention.</p>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:.5rem;align-items:flex-end;">
+    <div style="background:rgba(67,217,162,.2);border:2px solid #43D9A2;border-radius:9999px;padding:.3rem .85rem;font-size:.72rem;font-weight:800;color:#43D9A2;">Model Accuracy: 94%</div>
+    <div style="background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.3);border-radius:9999px;padding:.3rem .85rem;font-size:.72rem;font-weight:800;">Last trained: 2h ago</div>
+  </div>
+</div>
+
+<!-- AI Recommendations -->
+<div style="margin-bottom:1.25rem;">
+  <div style="font-size:.8rem;font-weight:800;color:var(--clay-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem;">🤖 AI Recommendations for This Week</div>
+  <div class="ai-rec">
+    <div class="ai-icon">📈</div>
+    <div>
+      <div style="font-weight:800;font-size:.9rem;color:var(--clay-text);">High Patient Surge Predicted — Tuesday</div>
+      <div style="font-size:.8rem;color:var(--clay-text-muted);margin-top:.25rem;">AI predicts 34% higher ER inflow next Tuesday (local market day + post-weekend). Recommend adding <strong>+3 nurses</strong> and <strong>+1 emergency doctor</strong> for the 14:00–22:00 shift window.</div>
+      <div style="display:flex;gap:.5rem;margin-top:.65rem;">
+        <button class="clay-btn clay-btn-primary"   style="padding:.35rem .85rem;font-size:.75rem;">✓ Apply Recommendation</button>
+        <button class="clay-btn clay-btn-secondary" style="padding:.35rem .85rem;font-size:.75rem;">View Details</button>
+      </div>
+    </div>
+  </div>
+  <div class="ai-rec">
+    <div class="ai-icon" style="background:#FF6584;">⚠️</div>
+    <div>
+      <div style="font-weight:800;font-size:.9rem;color:var(--clay-text);">Burnout Risk — Night Shift Nurses</div>
+      <div style="font-size:.8rem;color:var(--clay-text-muted);margin-top:.25rem;">3 nurses have worked 6+ consecutive night shifts. Recommend mandatory rest rotation to prevent clinical errors. Average shift compliance dropping to 78%.</div>
+      <div style="display:flex;gap:.5rem;margin-top:.65rem;">
+        <button class="clay-btn clay-btn-danger"    style="padding:.35rem .85rem;font-size:.75rem;">🔄 Rotate Schedule</button>
+        <button class="clay-btn clay-btn-secondary" style="padding:.35rem .85rem;font-size:.75rem;">View Staff</button>
+      </div>
+    </div>
+  </div>
+  <div class="ai-rec">
+    <div class="ai-icon" style="background:#43D9A2;">💊</div>
+    <div>
+      <div style="font-weight:800;font-size:.9rem;color:var(--clay-text);">Dengue Forecast — Increase Lab Staff in May</div>
+      <div style="font-size:.8rem;color:var(--clay-text-muted);margin-top:.25rem;">Seasonal disease model predicts dengue spike in May–Aug. Recommend hiring <strong>+2 lab technicians</strong> and increasing phlebotomist availability in Branches 2 and 4.</div>
+      <div style="display:flex;gap:.5rem;margin-top:.65rem;">
+        <button class="clay-btn clay-btn-secondary" style="padding:.35rem .85rem;font-size:.75rem;">📅 Plan Hiring</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-icon" style="background:var(--pastel-purple);">👨‍⚕️</div>
+    <div><div class="stat-value">34</div><div class="stat-label">Doctors on Duty</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:var(--pastel-blue);">👩‍⚕️</div>
+    <div><div class="stat-value">68</div><div class="stat-label">Nurses On Shift</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:var(--pastel-green);">✅</div>
+    <div><div class="stat-value" style="color:#1A9E74;">91%</div><div class="stat-label">Shift Compliance</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:var(--pastel-pink);">⚠️</div>
+    <div><div class="stat-value" style="color:#D63939;">3</div><div class="stat-label">Burnout Risks</div></div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- Weekly Schedule Grid -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📅 Staff Schedule — This Week</div>
+      <button class="clay-btn clay-btn-primary" style="padding:.35rem .85rem;font-size:.75rem;">+ Add Shift</button>
+    </div>
+    <div class="sched-grid">
+      <div></div>
+      <div class="sched-header">MON</div>
+      <div class="sched-header">TUE</div>
+      <div class="sched-header">WED</div>
+      <div class="sched-header">THU</div>
+      <div class="sched-header">FRI</div>
+      <div class="sched-header">SAT</div>
+      <div class="sched-header">SUN</div>
+
+      <div class="sched-label">Dr. Ananya</div>
+      <div class="sched-cell shift-m">M</div>
+      <div class="sched-cell shift-m">M</div>
+      <div class="sched-cell shift-off">OFF</div>
+      <div class="sched-cell shift-m">M</div>
+      <div class="sched-cell shift-m">M</div>
+      <div class="sched-cell shift-e">E</div>
+      <div class="sched-cell shift-off">OFF</div>
+
+      <div class="sched-label">Dr. Raj</div>
+      <div class="sched-cell shift-e">E</div>
+      <div class="sched-cell shift-m">M</div>
+      <div class="sched-cell shift-m">M</div>
+      <div class="sched-cell shift-e">E</div>
+      <div class="sched-cell shift-off">OFF</div>
+      <div class="sched-cell shift-m">M</div>
+      <div class="sched-cell shift-m">M</div>
+
+      <div class="sched-label">Nurse Priya</div>
+      <div class="sched-cell shift-m">M</div>
+      <div class="sched-cell shift-gap">GAP</div>
+      <div class="sched-cell shift-n">N</div>
+      <div class="sched-cell shift-n">N</div>
+      <div class="sched-cell shift-n">N</div>
+      <div class="sched-cell shift-off">OFF</div>
+      <div class="sched-cell shift-m">M</div>
+
+      <div class="sched-label">Nurse Meena</div>
+      <div class="sched-cell shift-n">N</div>
+      <div class="sched-cell shift-n">N</div>
+      <div class="sched-cell shift-m">M</div>
+      <div class="sched-cell shift-m">M</div>
+      <div class="sched-cell shift-e">E</div>
+      <div class="sched-cell shift-n">N</div>
+      <div class="sched-cell shift-n">N</div>
+
+      <div class="sched-label">Amb. Op. Ravi</div>
+      <div class="sched-cell shift-m">M</div>
+      <div class="sched-cell shift-m">M</div>
+      <div class="sched-cell shift-e">E</div>
+      <div class="sched-cell shift-off">OFF</div>
+      <div class="sched-cell shift-m">M</div>
+      <div class="sched-cell shift-m">M</div>
+      <div class="sched-cell shift-e">E</div>
+    </div>
+    <div style="display:flex;gap:.75rem;padding:.75rem 1.25rem;border-top:2px solid var(--clay-border);flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:.3rem;font-size:.68rem;font-weight:700;"><div style="width:12px;height:12px;border-radius:3px;background:#D6F5EC;border:1.5px solid #43D9A2;"></div>M = Morning (06–14)</div>
+      <div style="display:flex;align-items:center;gap:.3rem;font-size:.68rem;font-weight:700;"><div style="width:12px;height:12px;border-radius:3px;background:#D4F1F9;border:1.5px solid #48CAE4;"></div>E = Evening (14–22)</div>
+      <div style="display:flex;align-items:center;gap:.3rem;font-size:.68rem;font-weight:700;"><div style="width:12px;height:12px;border-radius:3px;background:#E8E4FF;border:1.5px solid #6C63FF;"></div>N = Night (22–06)</div>
+      <div style="display:flex;align-items:center;gap:.3rem;font-size:.68rem;font-weight:700;"><div style="width:12px;height:12px;border-radius:3px;background:#FFE4EC;border:1.5px solid #FF6584;"></div>GAP = Understaffed</div>
+    </div>
+  </div>
+
+  <!-- Compliance + Inflow Chart -->
+  <div style="display:flex;flex-direction:column;gap:1rem;">
+    <div class="card">
+      <div class="card-header"><div class="card-title">📊 Predicted Inflow vs Staff</div></div>
+      <div style="padding:1rem;"><canvas id="inflowStaffChart" height="150"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">👥 Shift Compliance by Role</div></div>
+      <div class="staff-row">
+        <div class="staff-avatar" style="background:#6C63FF;">Dr</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.8rem;font-weight:700;">Doctors</div>
+          <div class="shift-bar"><div class="shift-fill" style="width:92%;background:#6C63FF;"></div></div>
+        </div>
+        <span class="badge badge-ok">92%</span>
+      </div>
+      <div class="staff-row">
+        <div class="staff-avatar" style="background:#43D9A2;">Nu</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.8rem;font-weight:700;">Nurses</div>
+          <div class="shift-bar"><div class="shift-fill" style="width:78%;background:#FFBE0B;"></div></div>
+        </div>
+        <span class="badge badge-warn">78%</span>
+      </div>
+      <div class="staff-row">
+        <div class="staff-avatar" style="background:#FF6584;">La</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.8rem;font-weight:700;">Lab Technicians</div>
+          <div class="shift-bar"><div class="shift-fill" style="width:95%;background:#43D9A2;"></div></div>
+        </div>
+        <span class="badge badge-ok">95%</span>
+      </div>
+      <div class="staff-row">
+        <div class="staff-avatar" style="background:#48CAE4;">Am</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.8rem;font-weight:700;">Ambulance Ops</div>
+          <div class="shift-bar"><div class="shift-fill" style="width:75%;background:#FFBE0B;"></div></div>
+        </div>
+        <span class="badge badge-warn">75%</span>
+      </div>
+    </div>
+  </div>
+</div>
+</th:block>
+
+<th:block layout:fragment="scripts">
+<script>
+new Chart(document.getElementById('inflowStaffChart'),{
+  type:'line',
+  data:{
+    labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+    datasets:[
+      {label:'Patient Inflow',data:[85,118,78,95,88,102,60],borderColor:'#FF6584',backgroundColor:'rgba(255,101,132,.1)',borderWidth:2.5,tension:.4,fill:true},
+      {label:'Staff Available',data:[90,85,92,88,90,80,75],borderColor:'#6C63FF',backgroundColor:'rgba(108,99,255,.05)',borderWidth:2.5,tension:.4,borderDash:[6,3]}
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{family:'Nunito',weight:'700'},boxWidth:10}}},
+    scales:{
+      x:{grid:{display:false},ticks:{font:{family:'Nunito',weight:'700'},color:'#7B7F9E'}},
+      y:{ticks:{font:{family:'Nunito',weight:'700'},color:'#7B7F9E'}}
+    }
+  }
+});
+</script>
+</th:block>
+</html>

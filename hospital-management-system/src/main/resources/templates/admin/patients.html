@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head><title>Patients</title></head>
+<th:block layout:fragment="topbar-title">🧑‍⚕️ Patient Management</th:block>
+
+<th:block layout:fragment="content">
+<style>
+  .card{background:#fff;border-radius:var(--radius-lg);border:2.5px solid var(--clay-border);box-shadow:var(--shadow-card);overflow:hidden;}
+  .card-header{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.25rem;border-bottom:2px solid var(--clay-border);}
+  .card-title{font-size:.875rem;font-weight:800;}
+  .p-row{display:grid;grid-template-columns:40px 1.5fr 1fr 100px 120px 100px;gap:.75rem;align-items:center;padding:.75rem 1.25rem;border-bottom:1.5px solid var(--clay-border);font-size:.82rem;transition:background .1s;}
+  .p-row:hover{background:var(--clay-bg);}
+  .p-header{background:var(--pastel-purple);color:var(--clay-primary);font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.3px;}
+  .avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;color:#fff;flex-shrink:0;}
+</style>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+  <h1 style="font-size:1.4rem;font-weight:900;">🧑‍⚕️ All Patients</h1>
+  <div style="display:flex;gap:.5rem;">
+    <form method="get" action="/admin/patients" style="display:flex;gap:.5rem;">
+      <input name="q" type="text" class="clay-input" placeholder="🔍 Search name / ID / phone..."
+             style="width:240px;padding:.5rem .85rem;font-size:.82rem;" th:value="${q}"/>
+      <button class="clay-btn clay-btn-primary" style="padding:.5rem 1rem;font-size:.82rem;">Search</button>
+    </form>
+    <a href="/admin/patients" class="clay-btn clay-btn-secondary" style="padding:.5rem 1rem;font-size:.82rem;">Clear</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">All Registered Patients</div>
+    <span style="font-size:.75rem;font-weight:700;color:var(--clay-text-muted);"
+          th:text="${patients.totalElements + ' total'}">0 total</span>
+  </div>
+  <div class="p-row p-header">
+    <div></div>
+    <div>Patient</div>
+    <div>Patient ID</div>
+    <div>Phone</div>
+    <div>Registered</div>
+    <div>Action</div>
+  </div>
+  <div th:each="p : ${patients.content}" class="p-row">
+    <div class="avatar"
+         style="background:var(--clay-primary);"
+         th:text="${#strings.substring(p.user.firstName,0,1)}">P</div>
+    <div>
+      <div style="font-weight:700;" th:text="${p.user.fullName}">Name</div>
+      <div style="font-size:.7rem;color:var(--clay-text-muted);" th:text="${p.user.email}">Email</div>
+    </div>
+    <div style="font-family:monospace;font-size:.78rem;font-weight:700;color:var(--clay-primary);"
+         th:text="${p.patientIdNumber}">ID</div>
+    <div style="font-weight:600;color:var(--clay-text-muted);"
+         th:text="${p.user.phone ?: '—'}">Phone</div>
+    <div style="font-weight:600;color:var(--clay-text-muted);"
+         th:text="${#temporals.format(p.createdAt,'dd MMM yyyy')}">Date</div>
+    <div>
+      <a th:href="@{'/admin/patients/' + ${p.id}}"
+         class="clay-btn clay-btn-secondary" style="padding:.25rem .65rem;font-size:.72rem;">View</a>
+    </div>
+  </div>
+  <div th:if="${patients.totalElements == 0}"
+       style="padding:3rem;text-align:center;color:var(--clay-text-muted);font-weight:600;">
+    <div style="font-size:2.5rem;">🧑‍⚕️</div>
+    <div style="margin-top:.5rem;">No patients found.</div>
+  </div>
+
+  <!-- Pagination -->
+  <div th:if="${patients.totalPages > 1}"
+       style="display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.25rem;border-top:2px solid var(--clay-border);">
+    <span style="font-size:.78rem;font-weight:700;color:var(--clay-text-muted);"
+          th:text="'Page ' + ${patients.number+1} + ' of ' + ${patients.totalPages}">Page</span>
+    <div style="display:flex;gap:.4rem;">
+      <a th:if="${patients.hasPreviousPage()}"
+         th:href="@{/admin/patients(page=${patients.number-1},q=${q})}"
+         class="clay-btn clay-btn-secondary" style="padding:.35rem .85rem;font-size:.75rem;">← Prev</a>
+      <a th:if="${patients.hasNextPage()}"
+         th:href="@{/admin/patients(page=${patients.number+1},q=${q})}"
+         class="clay-btn clay-btn-primary" style="padding:.35rem .85rem;font-size:.75rem;">Next →</a>
+    </div>
+  </div>
+</div>
+</th:block>
+</html>

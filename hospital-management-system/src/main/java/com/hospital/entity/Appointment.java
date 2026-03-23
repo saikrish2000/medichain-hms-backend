@@ -31,11 +31,11 @@ public class Appointment {
     private Doctor doctor;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id", nullable = false)
+    @JoinColumn(name = "department_id")
     private Department department;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "branch_id", nullable = false)
+    @JoinColumn(name = "branch_id")
     private HospitalBranch branch;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -69,6 +69,9 @@ public class Appointment {
     @Column(name = "consultation_fee", precision = 10, scale = 2)
     private BigDecimal consultationFee;
 
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes = 30;
+
     @Column(name = "is_paid")
     private Boolean isPaid = false;
 
@@ -100,4 +103,10 @@ public class Appointment {
     public enum AppointmentStatus {
         PENDING, CONFIRMED, REJECTED, CANCELLED, COMPLETED, NO_SHOW
     }
+
+    /** Alias for symptoms — used in booking forms */
+    @Transient
+    public String getReasonForVisit() { return symptoms; }
+    public void setReasonForVisit(String r) { this.symptoms = r; }
+
 }

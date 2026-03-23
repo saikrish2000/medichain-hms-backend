@@ -1,18 +1,18 @@
 package com.hospital.controller;
 
 import com.hospital.entity.*;
+import com.hospital.exception.BadRequestException;
 import com.hospital.repository.*;
 import com.hospital.security.UserPrincipal;
 import com.hospital.service.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.time.*;
+import java.time.LocalDate;
 import java.util.List;
 
 @Controller
@@ -20,126 +20,99 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AppointmentController {
 
-    private final AppointmentService   appointmentService;
-    private final DoctorService        doctorService;
-    private final SlotService          slotService;
-    private final DepartmentRepository deptRepo;
+    private final AppointmentService     appointmentService;
+    private final SlotService            slotService;
+    private final DepartmentRepository   deptRepo;
+    private final DoctorRepository       doctorRepo;
+    private final HospitalBranchRepository branchRepo;
+    private final DoctorSlotRepository   slotRepo;
+    private final PatientRepository      patientRepo;
     private final SpecializationRepository specRepo;
-    private final DoctorRepository     doctorRepo;
-    private final PatientRepository    patientRepo;
 
-    // ── BOOK APPOINTMENT FLOW ──────────────────────────────
-    // Step 1: Choose department/specialization
+    // ── STEP 1: Choose Branch + Specialty ─────────────────
     @GetMapping("/book")
-    public String bookStep1(Model model) {
-        model.addAttribute("departments",     deptRepo.findByIsActive(true));
-        model.addAttribute("specializations", specRepo.findByIsActive(true));
+    public String step1(Model model) {
+        model.addAttribute("branches", branchRepo.findAll());
+        model.addAttribute("specs",    specRepo.findAll());
         return "appointments/book-step1";
     }
 
-    // Step 2: Choose doctor (filtered)
-    @GetMapping("/book/doctors")
-    public String bookStep2(@RequestParam(required = false) Long departmentId,
-                             @RequestParam(required = false) Long specializationId,
-                             @RequestParam(required = false) String q,
-                             @RequestParam(defaultValue = "0") int page,
-                             Model model) {
+    // ── STEP 2: Choose Doctor ──────────────────────────────
+    @GetMapping("/book/step2")
+    public String step2(@RequestParam Long branchId,
+                        @RequestParam Long specId,
+                        Model model) {
         model.addAttribute("doctors",
-            doctorService.searchDoctors(q, departmentId, specializationId, page));
-        model.addAttribute("departments",     deptRepo.findByIsActive(true));
-        model.addAttribute("specializations", specRepo.findByIsActive(true));
-        model.addAttribute("departmentId",    departmentId);
-        model.addAttribute("specializationId", specializationId);
-        model.addAttribute("q", q);
+            doctorRepo.findBySpecializationIdAndApprovalStatusAndBranchId(
+                specId, Doctor.ApprovalStatus.APPROVED, branchId));
+        model.addAttribute("branchId", branchId);
+        model.addAttribute("specId",   specId);
         return "appointments/book-step2";
     }
 
-    // Step 3: Choose date & time slot
-    @GetMapping("/book/slots")
-    public String bookStep3(@RequestParam Long doctorId,
-                             @RequestParam(required = false)
-                             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-                             Model model) {
-        Doctor doctor = doctorService.getDoctorById(doctorId);
-        LocalDate selectedDate = date != null ? date : LocalDate.now().plusDays(1);
+    // ── STEP 3: Choose Slot ────────────────────────────────
+    @GetMapping("/book/step3")
+    public String step3(@RequestParam Long doctorId,
+                        @RequestParam(required = false) String date,
+                        Model model) {
+        LocalDate selectedDate = (date != null && !date.isBlank())
+            ? LocalDate.parse(date) : LocalDate.now().plusDays(1);
+        Doctor doctor = doctorRepo.findById(doctorId)
+            .orElseThrow(() -> new BadRequestException("Doctor not found"));
         List<DoctorSlot> slots = slotService.getAvailableSlots(doctorId, selectedDate);
-
         model.addAttribute("doctor",       doctor);
-        model.addAttribute("selectedDate", selectedDate);
         model.addAttribute("slots",        slots);
-        model.addAttribute("nextDate",     selectedDate.plusDays(1));
-        model.addAttribute("prevDate",     selectedDate.minusDays(1));
-        model.addAttribute("today",        LocalDate.now());
+        model.addAttribute("selectedDate", selectedDate);
         return "appointments/book-step3";
     }
 
-    // Step 4: Confirm & submit
+    // ── STEP 4: Confirm ────────────────────────────────────
     @GetMapping("/book/confirm")
-    public String bookStep4(@RequestParam Long doctorId,
-                             @RequestParam Long slotId,
-                             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-                             @RequestParam String time,
-                             Model model) {
-        Doctor doctor    = doctorService.getDoctorById(doctorId);
-        DoctorSlot slot  = slotService.getDoctorSlots(doctorId)
-            .stream().filter(s -> s.getId().equals(slotId)).findFirst()
-            .orElseThrow();
-        model.addAttribute("doctor", doctor);
-        model.addAttribute("slot",   slot);
-        model.addAttribute("date",   date);
-        model.addAttribute("time",   time);
+    public String confirm(@RequestParam Long slotId, Model model) {
+        DoctorSlot slot = slotRepo.findById(slotId)
+            .orElseThrow(() -> new BadRequestException("Slot not found"));
+        model.addAttribute("slot", slot);
         return "appointments/book-confirm";
     }
 
-    @PostMapping("/book/submit")
-    public String submitBooking(@AuthenticationPrincipal UserPrincipal user,
-                                @RequestParam Long doctorId,
-                                @RequestParam Long slotId,
-                                @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-                                @RequestParam String time,
-                                @RequestParam(defaultValue = "") String symptoms,
-                                @RequestParam(defaultValue = "IN_PERSON") String type,
-                                RedirectAttributes ra) {
+    @PostMapping("/book/confirm")
+    public String doBook(@RequestParam Long slotId,
+                         @RequestParam(required = false) String reason,
+                         @RequestParam(required = false) String notes,
+                         @AuthenticationPrincipal UserPrincipal user,
+                         RedirectAttributes ra) {
         try {
             Appointment appt = appointmentService.bookAppointment(
-                user.getId(), doctorId, date,
-                LocalTime.parse(time), slotId, symptoms,
-                Appointment.AppointmentType.valueOf(type));
+                user.getId(), slotId,
+                reason != null ? reason : "General consultation", notes);
             ra.addFlashAttribute("success",
-                "Appointment booked! Your reference: " + appt.getAppointmentNumber());
+                "Appointment booked! Reference: " + appt.getAppointmentNumber());
             return "redirect:/appointments/my";
         } catch (Exception e) {
             ra.addFlashAttribute("error", e.getMessage());
-            return "redirect:/appointments/book/slots?doctorId=" + doctorId;
+            return "redirect:/appointments/book/confirm?slotId=" + slotId;
         }
     }
 
-    // ── PATIENT: MY APPOINTMENTS ───────────────────────────
+    // ── MY APPOINTMENTS ────────────────────────────────────
     @GetMapping("/my")
     public String myAppointments(@AuthenticationPrincipal UserPrincipal user,
                                   @RequestParam(defaultValue = "0") int page,
                                   Model model) {
         Patient patient = patientRepo.findByUserId(user.getId())
-            .orElse(null);
-        if (patient == null) return "redirect:/patient/complete-profile";
-
+            .orElseThrow(() -> new BadRequestException("Patient profile not found"));
         model.addAttribute("appointments",
             appointmentService.getPatientAppointments(patient.getId(), page));
         return "appointments/my-appointments";
     }
 
-    @GetMapping("/my/{id}")
-    public String myAppointmentDetail(@PathVariable Long id, Model model) {
-        model.addAttribute("appt", appointmentService.getAppointment(id));
-        return "appointments/my-appointment-detail";
-    }
-
-    @PostMapping("/my/{id}/cancel")
-    public String cancelAppointment(@PathVariable Long id,
-                                    @AuthenticationPrincipal UserPrincipal user,
-                                    RedirectAttributes ra) {
+    // ── CANCEL ─────────────────────────────────────────────
+    @PostMapping("/{id}/cancel")
+    public String cancel(@PathVariable Long id,
+                          @AuthenticationPrincipal UserPrincipal user,
+                          RedirectAttributes ra) {
         try {
-            appointmentService.cancelAppointment(id, user.getId());
+            appointmentService.cancelByPatient(id, user.getId());
             ra.addFlashAttribute("success", "Appointment cancelled.");
         } catch (Exception e) {
             ra.addFlashAttribute("error", e.getMessage());

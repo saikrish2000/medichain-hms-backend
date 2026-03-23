@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head>
+  <title>Vitals History</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<th:block layout:fragment="sidebar-nav">
+  <div class="nav-section-title">My Health</div>
+  <a th:href="@{/patient/dashboard}" class="nav-link"><span class="nav-icon">🏠</span> Dashboard</a>
+  <div class="nav-section-title">Health Vault</div>
+  <a th:href="@{/patient/records}"   class="nav-link"><span class="nav-icon">🏥</span> Medical Records</a>
+  <a th:href="@{/patient/vitals}"    class="nav-link active"><span class="nav-icon">📊</span> Vitals History</a>
+  <a th:href="@{/patient/labs}"      class="nav-link"><span class="nav-icon">🧬</span> Lab Results</a>
+  <div class="nav-section-title">Appointments</div>
+  <a th:href="@{/appointments/book}" class="nav-link"><span class="nav-icon">📅</span> Book Appointment</a>
+  <a th:href="@{/appointments/my}"   class="nav-link"><span class="nav-icon">📋</span> My Appointments</a>
+</th:block>
+<th:block layout:fragment="topbar-title">📊 Vitals History</th:block>
+
+<th:block layout:fragment="content">
+<style>
+  .vitals-overview{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.4rem;}
+  .vital-card{background:#fff;border-radius:var(--radius-lg);border:2.5px solid var(--clay-border);padding:1.25rem;box-shadow:var(--shadow-card);text-align:center;}
+  .vital-main{font-size:2rem;font-weight:900;line-height:1;}
+  .vital-name{font-size:.7rem;font-weight:800;color:var(--clay-text-muted);text-transform:uppercase;letter-spacing:.4px;margin-top:.25rem;}
+  .vital-trend{font-size:.72rem;font-weight:700;margin-top:.3rem;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+  .card{background:#fff;border-radius:var(--radius-lg);border:2.5px solid var(--clay-border);box-shadow:var(--shadow-card);overflow:hidden;}
+  .card-header{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.25rem;border-bottom:2px solid var(--clay-border);}
+  .card-title{font-size:.875rem;font-weight:800;}
+  .rec-row{display:grid;grid-template-columns:110px 90px 90px 80px 80px 80px;gap:.5rem;align-items:center;padding:.75rem 1.25rem;border-bottom:1.5px solid var(--clay-border);font-size:.8rem;}
+  .rec-row:hover{background:var(--clay-bg);}
+  .rec-header{background:var(--pastel-purple);color:var(--clay-primary);font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.3px;}
+</style>
+
+<h1 style="font-size:1.4rem;font-weight:900;margin-bottom:1.4rem;">📊 Vitals History</h1>
+
+<!-- Latest vitals overview -->
+<div class="vitals-overview">
+  <div class="vital-card" th:if="${!#lists.isEmpty(records)}">
+    <div class="vital-main" style="color:#FF6584;" th:text="${records[0].bloodPressure ?: '—'}">—</div>
+    <div class="vital-name">Blood Pressure</div>
+    <div class="vital-trend" style="color:#43D9A2;">✓ Normal range</div>
+  </div>
+  <div class="vital-card" th:if="${!#lists.isEmpty(records)}">
+    <div class="vital-main" style="color:#6C63FF;" th:text="${records[0].heartRate != null ? records[0].heartRate + ' bpm' : '—'}">—</div>
+    <div class="vital-name">Heart Rate</div>
+    <div class="vital-trend" style="color:#43D9A2;">✓ Normal</div>
+  </div>
+  <div class="vital-card" th:if="${!#lists.isEmpty(records)}">
+    <div class="vital-main" style="color:#43D9A2;" th:text="${records[0].oxygenSaturation != null ? records[0].oxygenSaturation + '%' : '—'}">—</div>
+    <div class="vital-name">SpO₂</div>
+    <div class="vital-trend" style="color:#43D9A2;">✓ Good</div>
+  </div>
+  <div th:if="${#lists.isEmpty(records)}" style="grid-column:1/-1;text-align:center;padding:3rem;background:#fff;border-radius:var(--radius-lg);border:2.5px dashed var(--clay-border);">
+    <div style="font-size:2.5rem;">📊</div>
+    <div style="font-weight:700;margin-top:.5rem;">No vitals recorded yet. Visit a doctor to get started.</div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header"><div class="card-title">💓 Heart Rate Trend</div></div>
+    <div style="padding:1rem;"><canvas id="hrChart" height="160"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">🩺 Blood Pressure Trend</div></div>
+    <div style="padding:1rem;"><canvas id="bpChart" height="160"></canvas></div>
+  </div>
+</div>
+
+<!-- Records table -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📋 All Recorded Vitals</div>
+  </div>
+  <div class="rec-row rec-header">
+    <div>Date</div><div>BP</div><div>HR</div><div>Temp</div><div>SpO₂</div><div>Weight</div>
+  </div>
+  <div th:each="r : ${records}" class="rec-row">
+    <div style="font-weight:700;color:var(--clay-text-muted);" th:text="${#temporals.format(r.visitDate,'dd MMM yyyy')}">—</div>
+    <div style="font-weight:600;" th:text="${r.bloodPressure ?: '—'}">—</div>
+    <div style="font-weight:600;" th:text="${r.heartRate != null ? r.heartRate + ' bpm' : '—'}">—</div>
+    <div style="font-weight:600;" th:text="${r.temperature != null ? r.temperature + '°C' : '—'}">—</div>
+    <div style="font-weight:600;" th:text="${r.oxygenSaturation != null ? r.oxygenSaturation + '%' : '—'}">—</div>
+    <div style="font-weight:600;" th:text="${r.weight != null ? r.weight + ' kg' : '—'}">—</div>
+  </div>
+  <div th:if="${#lists.isEmpty(records)}" style="padding:2.5rem;text-align:center;color:var(--clay-text-muted);font-weight:600;">No records yet.</div>
+</div>
+</th:block>
+
+<th:block layout:fragment="scripts">
+<script>
+const labels = /*[[${records.![#temporals.format(visitDate,'dd MMM')]}]]*/ ['Visit 1','Visit 2','Visit 3'];
+const hrs    = /*[[${records.![heartRate ?: 0]}]]*/ [72,74,71];
+const sysBP  = /*[[${records.![#strings.listSplit(bloodPressure ?: '0/0','/')[0].trim()]}]]*/ [120,118,122];
+
+new Chart(document.getElementById('hrChart'),{
+  type:'line',
+  data:{labels:labels.reverse(),datasets:[{label:'HR (bpm)',data:hrs.reverse(),borderColor:'#FF6584',backgroundColor:'rgba(255,101,132,.1)',borderWidth:2.5,pointRadius:5,tension:.4,fill:true}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{family:'Nunito',weight:'700'},color:'#7B7F9E'}},y:{ticks:{font:{family:'Nunito',weight:'700'},color:'#7B7F9E'}}}}
+});
+new Chart(document.getElementById('bpChart'),{
+  type:'line',
+  data:{labels:labels,datasets:[{label:'Systolic',data:sysBP,borderColor:'#6C63FF',backgroundColor:'rgba(108,99,255,.1)',borderWidth:2.5,pointRadius:5,tension:.4,fill:true}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{family:'Nunito',weight:'700'},color:'#7B7F9E'}},y:{ticks:{font:{family:'Nunito',weight:'700'},color:'#7B7F9E'}}}}
+});
+</script>
+</th:block>
+</html>

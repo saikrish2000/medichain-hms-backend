@@ -24,7 +24,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
-    private final JwtAuthenticationFilter jwtAuthFilter;
+    private final JwtAuthenticationFilter  jwtAuthFilter;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -33,81 +33,77 @@ public class SecurityConfig {
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        var provider = new DaoAuthenticationProvider();
         provider.setUserDetailsService(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config)
-            throws Exception {
-        return config.getAuthenticationManager();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration cfg) throws Exception {
+        return cfg.getAuthenticationManager();
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf
-                .ignoringRequestMatchers("/api/**", "/ws/**")
-            )
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/ws/**"))
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // ── Public pages ──────────────────────────
+
+                // ── Public ─────────────────────────────────
                 .requestMatchers(
                     "/", "/login", "/register", "/register/**",
                     "/forgot-password", "/reset-password",
                     "/verify-email", "/error"
                 ).permitAll()
-                // ── Static resources ──────────────────────
-                .requestMatchers(
-                    "/css/**", "/js/**", "/images/**",
-                    "/webjars/**", "/favicon.ico"
-                ).permitAll()
-                // ── Public API ────────────────────────────
+                .requestMatchers("/css/**", "/js/**", "/images/**",
+                    "/webjars/**", "/favicon.ico").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
-                // ── WebSocket ─────────────────────────────
                 .requestMatchers("/ws/**").permitAll()
 
-                // ── ADMIN ─────────────────────────────────
+                // ── ADMIN ──────────────────────────────────
                 .requestMatchers("/admin/**").hasRole("ADMIN")
 
-                // ── DOCTOR ────────────────────────────────
+                // ── DOCTOR ─────────────────────────────────
                 .requestMatchers("/doctor/**").hasRole("DOCTOR")
+                .requestMatchers("/lab/orders").hasAnyRole("DOCTOR","LAB_TECHNICIAN","PHLEBOTOMIST")
 
-                // ── APPOINTMENTS (shared: patient books, doctor manages) ──
-                .requestMatchers("/appointments/book/**").hasRole("PATIENT")
-                .requestMatchers("/appointments/my/**").hasRole("PATIENT")
+                // ── APPOINTMENTS ───────────────────────────
+                .requestMatchers("/appointments/book/**", "/appointments/my/**",
+                    "/appointments/*/cancel").hasRole("PATIENT")
                 .requestMatchers("/appointments/**").authenticated()
 
-                // ── PATIENT ───────────────────────────────
+                // ── PATIENT ────────────────────────────────
                 .requestMatchers("/patient/**").hasRole("PATIENT")
 
-                // ── NURSE ─────────────────────────────────
-                .requestMatchers("/nurse/**").hasAnyRole("NURSE", "INDEPENDENT_NURSE")
+                // ── NURSE ──────────────────────────────────
+                .requestMatchers("/nurse/**").hasAnyRole("NURSE","INDEPENDENT_NURSE")
 
-                // ── BLOOD BANK ────────────────────────────
-                .requestMatchers("/blood-bank/**").hasRole("BLOOD_BANK_MANAGER")
+                // ── BLOOD BANK ─────────────────────────────
+                .requestMatchers("/blood-bank/**")
+                    .hasAnyRole("BLOOD_BANK_MANAGER","ADMIN")
 
-                // ── AMBULANCE ─────────────────────────────
-                .requestMatchers("/ambulance/**").hasRole("AMBULANCE_OPERATOR")
+                // ── AMBULANCE ──────────────────────────────
+                .requestMatchers("/ambulance/**")
+                    .hasAnyRole("AMBULANCE_OPERATOR","ADMIN")
 
-                // ── PHARMACY ──────────────────────────────
-                .requestMatchers("/pharmacy/**").hasAnyRole("PHARMACIST", "DOCTOR", "NURSE")
+                // ── PHARMACY ───────────────────────────────
+                .requestMatchers("/pharmacy/**")
+                    .hasAnyRole("PHARMACIST","DOCTOR","NURSE","ADMIN")
 
-                // ── LAB ───────────────────────────────────
-                .requestMatchers("/lab/**").hasAnyRole("LAB_TECHNICIAN", "PHLEBOTOMIST", "DOCTOR")
+                // ── LAB ────────────────────────────────────
+                .requestMatchers("/lab/**")
+                    .hasAnyRole("LAB_TECHNICIAN","PHLEBOTOMIST","DOCTOR","ADMIN")
 
-                // ── EXTERNAL SERVICES ─────────────────────
-                .requestMatchers("/medical-shop/**").hasRole("MEDICAL_SHOP_OWNER")
-                .requestMatchers("/diagnostic/**").hasRole("DIAGNOSTIC_CENTER_OWNER")
+                // ── EXTERNAL SERVICES ──────────────────────
+                .requestMatchers("/medical-shop/**").hasAnyRole("MEDICAL_SHOP_OWNER","ADMIN")
+                .requestMatchers("/diagnostic/**").hasAnyRole("DIAGNOSTIC_CENTER_OWNER","ADMIN")
 
-                // ── BILLING ───────────────────────────────
+                // ── BILLING ────────────────────────────────
                 .requestMatchers("/billing/**").authenticated()
 
-                // ── EVERYTHING ELSE ───────────────────────
+                // ── DEFAULT ────────────────────────────────
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form.disable())

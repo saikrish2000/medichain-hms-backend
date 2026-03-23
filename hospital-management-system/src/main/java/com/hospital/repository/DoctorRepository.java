@@ -16,14 +16,22 @@ import java.util.Optional;
 public interface DoctorRepository extends JpaRepository<Doctor, Long> {
     Optional<Doctor> findByUserId(Long userId);
     Optional<Doctor> findByLicenseNumber(String licenseNumber);
-    List<Doctor> findByApprovalStatus(ApprovalStatus status);
+    List<Doctor>  findByApprovalStatus(ApprovalStatus status);
     Page<Doctor>  findByApprovalStatus(ApprovalStatus status, Pageable pageable);
-    List<Doctor> findByDepartmentId(Long departmentId);
-    List<Doctor> findBySpecializationId(Long specializationId);
+    List<Doctor>  findByDepartmentId(Long departmentId);
+    List<Doctor>  findBySpecializationId(Long specializationId);
     long countByApprovalStatus(ApprovalStatus status);
 
-    @Query("SELECT d FROM Doctor d WHERE d.approvalStatus = 'APPROVED' AND d.isAvailable = true AND d.department.branch.id = :branchId")
+    @Query("SELECT d FROM Doctor d WHERE d.approvalStatus = 'APPROVED' " +
+           "AND d.isAvailable = true AND d.department.branch.id = :branchId")
     List<Doctor> findAvailableByBranch(@Param("branchId") Long branchId);
+
+    @Query("SELECT d FROM Doctor d WHERE d.specialization.id = :specId " +
+           "AND d.approvalStatus = :status AND d.department.branch.id = :branchId")
+    List<Doctor> findBySpecializationIdAndApprovalStatusAndBranchId(
+        @Param("specId") Long specId,
+        @Param("status") ApprovalStatus status,
+        @Param("branchId") Long branchId);
 
     @Query("SELECT d FROM Doctor d JOIN d.user u WHERE " +
            "LOWER(u.firstName) LIKE LOWER(CONCAT('%',:q,'%')) OR " +

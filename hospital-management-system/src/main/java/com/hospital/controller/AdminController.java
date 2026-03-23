@@ -227,18 +227,4 @@ public class AdminController {
         ra.addFlashAttribute("success", "User status updated.");
         return "redirect:/admin/users";
     }
-
-    // ── PATIENTS ──────────────────────────────────────────
-    @GetMapping("/patients")
-    public String patients(@RequestParam(defaultValue = "0") int page,
-                           @RequestParam(defaultValue = "") String q,
-                           Model model) {
-        model.addAttribute("patients",
-            q.isBlank() ? patientRepository.findAll(
-                PageRequest.of(page, 15, Sort.by("createdAt").descending()))
-                        : patientRepository.search(q,
-                PageRequest.of(page, 15, Sort.by("createdAt").descending())));
-        model.addAttribute("q", q);
-        return "admin/patients";
-    }
 }

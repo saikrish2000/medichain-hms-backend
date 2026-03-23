@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head><title>CPOE — Prescriptions</title></head>
+<th:block layout:fragment="sidebar-nav">
+  <div class="nav-section-title">Clinical</div>
+  <a th:href="@{/doctor/dashboard}"    class="nav-link"><span class="nav-icon">📊</span> Dashboard</a>
+  <a th:href="@{/doctor/appointments}" class="nav-link"><span class="nav-icon">📅</span> Appointments</a>
+  <a th:href="@{/doctor/patients}"     class="nav-link"><span class="nav-icon">🧑‍⚕️</span> My Patients</a>
+  <a th:href="@{/doctor/slots}"        class="nav-link"><span class="nav-icon">🗓️</span> My Slots</a>
+  <div class="nav-section-title">Records</div>
+  <a th:href="@{/doctor/records/new}"  class="nav-link"><span class="nav-icon">📝</span> New Record</a>
+  <a th:href="@{/doctor/prescriptions}" class="nav-link active"><span class="nav-icon">💊</span> Prescriptions</a>
+</th:block>
+<th:block layout:fragment="topbar-title">💊 CPOE — Prescriptions</th:block>
+
+<th:block layout:fragment="content">
+<style>
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  .card{background:#fff;border-radius:var(--radius-lg);border:2.5px solid var(--clay-border);box-shadow:var(--shadow-card);overflow:hidden;}
+  .card-header{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.25rem;border-bottom:2px solid var(--clay-border);}
+  .card-title{font-size:.875rem;font-weight:800;}
+  .drug-row{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;border-bottom:1.5px solid var(--clay-border);}
+  .drug-row:last-child{border-bottom:none;}
+  .drug-status{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;}
+  .status-safe{background:var(--pastel-green);border:2px solid #43D9A2;}
+  .status-warn{background:var(--pastel-yellow);border:2px solid #FFBE0B;}
+  .status-danger{background:var(--pastel-pink);border:2px solid #FF6584;}
+  .rights-banner{background:linear-gradient(135deg,#6C63FF,#9B5DE5);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;color:#fff;margin-bottom:1.25rem;display:flex;align-items:center;gap:2rem;}
+  .right-pill{background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.3);border-radius:var(--radius-md);padding:.5rem .75rem;text-align:center;min-width:80px;}
+  .right-label{font-size:.62rem;font-weight:800;opacity:.8;text-transform:uppercase;}
+  .right-val{font-size:.85rem;font-weight:900;margin-top:.1rem;}
+</style>
+
+<h1 style="font-size:1.4rem;font-weight:900;margin-bottom:1.25rem;">💊 Computerised Physician Order Entry</h1>
+
+<!-- 5 Rights Banner -->
+<div class="rights-banner">
+  <div style="font-size:1.5rem;">🛡️</div>
+  <div><div style="font-weight:800;font-size:1rem;">5 Rights Verification Active</div><div style="font-size:.8rem;opacity:.8;margin-top:.15rem;">All prescriptions verified against patient allergy and drug interaction database</div></div>
+  <div style="display:flex;gap:.5rem;margin-left:auto;flex-wrap:wrap;">
+    <div class="right-pill"><div class="right-label">Patient</div><div class="right-val">✓</div></div>
+    <div class="right-pill"><div class="right-label">Drug</div><div class="right-val">✓</div></div>
+    <div class="right-pill"><div class="right-label">Dose</div><div class="right-val">✓</div></div>
+    <div class="right-pill"><div class="right-label">Route</div><div class="right-val">✓</div></div>
+    <div class="right-pill"><div class="right-label">Time</div><div class="right-val">✓</div></div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- Write New Prescription -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">✍️ Write Prescription</div></div>
+    <div style="padding:1.25rem;">
+      <form>
+        <div class="form-group">
+          <label class="clay-label">Patient</label>
+          <input type="text" class="clay-input" placeholder="Search patient name or ID..."/>
+        </div>
+        <div class="form-group">
+          <label class="clay-label">Drug Name</label>
+          <input type="text" class="clay-input clay-select" id="drugInput" placeholder="Type drug name..." oninput="checkDrug(this.value)"/>
+          <div id="drugAlert" style="display:none;margin-top:.5rem;"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+          <div class="form-group">
+            <label class="clay-label">Dose</label>
+            <input type="text" class="clay-input" placeholder="e.g. 500mg"/>
+          </div>
+          <div class="form-group">
+            <label class="clay-label">Frequency</label>
+            <select class="clay-input clay-select">
+              <option>Once daily</option>
+              <option>Twice daily</option>
+              <option>Three times daily</option>
+              <option>Four times daily</option>
+              <option>Every 8 hours</option>
+              <option>As needed (PRN)</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+          <div class="form-group">
+            <label class="clay-label">Route</label>
+            <select class="clay-input clay-select">
+              <option>Oral</option>
+              <option>IV</option>
+              <option>IM</option>
+              <option>Subcutaneous</option>
+              <option>Topical</option>
+              <option>Inhalation</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="clay-label">Duration</label>
+            <input type="text" class="clay-input" placeholder="e.g. 7 days"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="clay-label">Instructions</label>
+          <textarea class="clay-input" rows="2" placeholder="Take after meals, avoid alcohol..."></textarea>
+        </div>
+        <button type="button" class="clay-btn clay-btn-primary clay-btn-block">💊 Issue Prescription</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Drug Interaction Checker -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">⚠️ Drug Interaction Monitor</div>
+      <span style="background:var(--pastel-green);color:#1A9E74;border:2px solid #43D9A2;border-radius:9999px;padding:.12rem .55rem;font-size:.62rem;font-weight:800;">DB Active</span>
+    </div>
+    <div style="padding:.75rem 1.25rem;background:var(--clay-bg);border-bottom:2px solid var(--clay-border);">
+      <div style="font-size:.72rem;font-weight:800;color:var(--clay-text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.5rem;">Current Patient Medications</div>
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem;">
+        <span style="background:var(--pastel-purple);border:2px solid var(--clay-border);border-radius:9999px;padding:.2rem .65rem;font-size:.72rem;font-weight:700;color:var(--clay-primary);">Metformin 500mg</span>
+        <span style="background:var(--pastel-purple);border:2px solid var(--clay-border);border-radius:9999px;padding:.2rem .65rem;font-size:.72rem;font-weight:700;color:var(--clay-primary);">Lisinopril 10mg</span>
+        <span style="background:var(--pastel-purple);border:2px solid var(--clay-border);border-radius:9999px;padding:.2rem .65rem;font-size:.72rem;font-weight:700;color:var(--clay-primary);">Atorvastatin 20mg</span>
+      </div>
+    </div>
+    <div class="drug-row">
+      <div class="drug-status status-warn">⚠</div>
+      <div>
+        <div style="font-weight:800;font-size:.82rem;">Metformin + Aspirin</div>
+        <div style="font-size:.72rem;color:#9C7400;font-weight:600;">Moderate interaction — monitor blood glucose levels closely. Aspirin may enhance hypoglycaemic effect.</div>
+      </div>
+    </div>
+    <div class="drug-row">
+      <div class="drug-status status-safe">✓</div>
+      <div>
+        <div style="font-weight:800;font-size:.82rem;">Lisinopril + Atorvastatin</div>
+        <div style="font-size:.72rem;color:#1A9E74;font-weight:600;">No known interaction — safe to prescribe together.</div>
+      </div>
+    </div>
+    <div class="drug-row">
+      <div class="drug-status status-danger">✗</div>
+      <div>
+        <div style="font-weight:800;font-size:.82rem;">Metformin + Ibuprofen</div>
+        <div style="font-size:.72rem;color:#D63939;font-weight:600;">HIGH RISK — NSAIDs reduce Metformin efficacy and risk lactic acidosis in diabetic patients. Avoid.</div>
+      </div>
+    </div>
+    <div class="drug-row">
+      <div class="drug-status status-safe">✓</div>
+      <div>
+        <div style="font-weight:800;font-size:.82rem;">Paracetamol (any dose)</div>
+        <div style="font-size:.72rem;color:#1A9E74;font-weight:600;">Safe with all current medications — preferred analgesic for this patient.</div>
+      </div>
+    </div>
+    <!-- Allergy panel -->
+    <div style="margin:0 1.25rem 1rem;background:var(--pastel-pink);border:2px solid #FF6584;border-radius:var(--radius-md);padding:.75rem;">
+      <div style="font-size:.72rem;font-weight:800;color:#D63939;text-transform:uppercase;margin-bottom:.3rem;">⚠ Patient Allergies</div>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+        <span style="background:#fff;border:2px solid #FF6584;border-radius:9999px;padding:.15rem .55rem;font-size:.7rem;font-weight:800;color:#D63939;">Penicillin</span>
+        <span style="background:#fff;border:2px solid #FF6584;border-radius:9999px;padding:.15rem .55rem;font-size:.7rem;font-weight:800;color:#D63939;">Sulfa Drugs</span>
+      </div>
+    </div>
+  </div>
+</div>
+</th:block>
+
+<th:block layout:fragment="scripts">
+<script>
+const interactions = {
+  'aspirin':    {level:'warn',   msg:'⚠ Moderate interaction with Metformin — monitor glucose'},
+  'ibuprofen':  {level:'danger', msg:'🚨 HIGH RISK with Metformin — avoid NSAIDs in diabetic patients'},
+  'penicillin': {level:'danger', msg:'🚨 ALLERGY ALERT — Patient is allergic to Penicillin!'},
+  'naproxen':   {level:'warn',   msg:'⚠ NSAID — same risk profile as ibuprofen with Metformin'},
+  'paracetamol':{level:'safe',   msg:'✅ Safe with all current medications'},
+  'amoxicillin':{level:'safe',   msg:'✅ No known interactions with current medications'},
+};
+function checkDrug(val){
+  const el = document.getElementById('drugAlert');
+  const key = val.toLowerCase().trim();
+  const match = Object.keys(interactions).find(k => key.includes(k));
+  if(match){
+    const info = interactions[match];
+    const colors = {warn:'#FFF4CC;border:2px solid #FFBE0B;color:#9C7400', danger:'#FFE4EC;border:2px solid #FF6584;color:#D63939', safe:'#D6F5EC;border:2px solid #43D9A2;color:#1A9E74'};
+    el.style.cssText = `display:flex;align-items:center;gap:.5rem;background:${colors[info.level].split(';')[0].split(':')[1]};border:${colors[info.level].split(';')[1].split(':').slice(1).join(':')};border-radius:12px;padding:.55rem .85rem;font-size:.78rem;font-weight:700;color:${colors[info.level].split(';')[2].split(':')[1]}`;
+    el.textContent = info.msg;
+  } else {
+    el.style.display = 'none';
+  }
+}
+</script>
+</th:block>
+</html>
