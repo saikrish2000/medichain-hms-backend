@@ -34,28 +34,28 @@ public class BloodBankService {
 
     @Transactional
     public BloodInventory setStock(Long bankId, BloodGroup group, int units, int threshold) {
-        BloodInventory inv = inventoryRepo.findByBankIdAndBloodGroup(bankId, group)
+        BloodInventory inv = inventoryRepo.findByBloodBankIdAndBloodGroup(bankId, group)
             .orElseGet(() -> {
                 BloodInventory i = new BloodInventory();
                 BloodBank bank = bankRepo.findById(bankId)
                     .orElseThrow(() -> new ResourceNotFoundException("BloodBank","id",bankId));
-                i.setBank(bank); i.setBloodGroup(group); return i;
+                i.setBloodBank(bank); i.setBloodGroup(group); return i;
             });
-        inv.setAvailableUnits(units);
+        inv.setUnitsAvailable(units);
         inv.setMinimumThreshold(threshold);
         return inventoryRepo.save(inv);
     }
 
     @Transactional
     public BloodInventory updateStock(Long bankId, BloodGroup group, int units) {
-        BloodInventory inv = inventoryRepo.findByBankIdAndBloodGroup(bankId, group)
+        BloodInventory inv = inventoryRepo.findByBloodBankIdAndBloodGroup(bankId, group)
             .orElseGet(() -> {
                 BloodInventory i = new BloodInventory();
                 BloodBank bank = bankRepo.findById(bankId)
                     .orElseThrow(() -> new ResourceNotFoundException("BloodBank","id",bankId));
-                i.setBank(bank); i.setBloodGroup(group); i.setAvailableUnits(0); return i;
+                i.setBloodBank(bank); i.setBloodGroup(group); i.setUnitsAvailable(0); return i;
             });
-        inv.setAvailableUnits(inv.getAvailableUnits() + units);
+        inv.setUnitsAvailable(inv.getUnitsAvailable() + units);
         return inventoryRepo.save(inv);
     }
 
@@ -78,12 +78,12 @@ public class BloodBankService {
     public void approveRequest(Long requestId, int unitsApproved, Long reviewerUserId) {
         BloodRequest req = requestRepo.findById(requestId)
             .orElseThrow(() -> new ResourceNotFoundException("BloodRequest","id",requestId));
-        BloodInventory inv = inventoryRepo.findByBankIdAndBloodGroup(
+        BloodInventory inv = inventoryRepo.findByBloodBankIdAndBloodGroup(
             req.getBank().getId(), req.getBloodGroup())
             .orElseThrow(() -> new BadRequestException("No inventory found"));
-        if (inv.getAvailableUnits() < unitsApproved)
-            throw new BadRequestException("Insufficient stock: " + inv.getAvailableUnits() + " units");
-        inv.setAvailableUnits(inv.getAvailableUnits() - unitsApproved);
+        if (inv.getUnitsAvailable() < unitsApproved)
+            throw new BadRequestException("Insufficient stock: " + inv.getUnitsAvailable() + " units");
+        inv.setUnitsAvailable(inv.getUnitsAvailable() - unitsApproved);
         inventoryRepo.save(inv);
         req.setStatus(BloodRequest.RequestStatus.APPROVED);
         req.setUnitsApproved(unitsApproved);
@@ -112,7 +112,7 @@ public class BloodBankService {
         BloodDonation d = new BloodDonation();
         d.setBank(bank); d.setDonor(donor); d.setBloodGroup(group);
         d.setUnitsCollected(units); d.setStatus(BloodDonation.DonationStatus.PENDING);
-        d.setDonationDate(LocalDateTime.now());
+        d.setDonationDate(java.time.LocalDate.now());
         return donationRepo.save(d);
     }
 

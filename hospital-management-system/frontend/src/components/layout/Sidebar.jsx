@@ -1,206 +1,125 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { cn } from '../../utils/helpers';
 import useAuthStore from '../../store/authStore';
-import {
-  LayoutDashboard, Users, Calendar, Stethoscope, Pill, FlaskConical,
-  Ambulance, CreditCard, Heart, UserCheck, ClipboardList, Settings,
-  LogOut, Building2, Activity, FileText, Bell, Shield, ChevronRight,
-  Droplets, Bed, Package, UserCog
-} from 'lucide-react';
 
-// Navigation config per role
 const NAV = {
   ADMIN: [
-    { section: 'Overview' },
-    { to: '/admin/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/admin/users',        icon: Users,           label: 'All Users' },
-    { section: 'Operations' },
-    { to: '/admin/approvals',    icon: UserCheck,       label: 'Approvals' },
-    { to: '/admin/departments',  icon: Building2,       label: 'Departments' },
-    { to: '/admin/branches',     icon: Building2,       label: 'Branches' },
-    { to: '/admin/patients',     icon: Users,           label: 'Patients' },
-    { section: 'Finance & Reports' },
-    { to: '/billing/dashboard',  icon: CreditCard,      label: 'Billing' },
-    { to: '/admin/reports',      icon: FileText,        label: 'Reports' },
-    { to: '/admin/audit-logs',   icon: Shield,          label: 'Audit Logs' },
+    { to:'/admin/dashboard',   icon:'🏠', label:'Dashboard' },
+    { to:'/admin/approvals',   icon:'✅', label:'Approvals' },
+    { to:'/admin/patients',    icon:'👥', label:'Patients' },
+    { to:'/admin/departments', icon:'🏥', label:'Departments' },
+    { to:'/admin/users',       icon:'👤', label:'Users' },
+    { to:'/admin/audit-logs',  icon:'📋', label:'Audit Logs' },
+    { to:'/admin/reports',     icon:'📊', label:'Reports' },
+    { to:'/billing/dashboard', icon:'💰', label:'Billing' },
+    { to:'/blood-bank/dashboard', icon:'🩸', label:'Blood Bank' },
+    { to:'/ambulance/dashboard',  icon:'🚑', label:'Ambulance' },
   ],
   DOCTOR: [
-    { section: 'Overview' },
-    { to: '/doctor/dashboard',   icon: LayoutDashboard, label: 'Dashboard' },
-    { section: 'Clinical' },
-    { to: '/doctor/appointments',icon: Calendar,        label: 'Appointments' },
-    { to: '/doctor/patients',    icon: Users,           label: 'My Patients' },
-    { to: '/doctor/prescriptions',icon: Pill,           label: 'Prescriptions' },
-    { to: '/doctor/lab-orders',  icon: FlaskConical,    label: 'Lab Orders' },
-    { to: '/doctor/slots',       icon: ClipboardList,   label: 'My Slots' },
-  ],
-  NURSE: [
-    { section: 'Overview' },
-    { to: '/nurse/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
-    { section: 'Ward' },
-    { to: '/nurse/patients',     icon: Users,           label: 'Patients' },
-    { to: '/nurse/tasks',        icon: ClipboardList,   label: 'Tasks' },
-    { to: '/nurse/vitals',       icon: Activity,        label: 'Vitals' },
-    { to: '/nurse/emar',         icon: Pill,            label: 'eMAR' },
-    { to: '/nurse/handover',     icon: UserCog,         label: 'Handover' },
+    { to:'/doctor/dashboard',     icon:'🏠', label:'Dashboard' },
+    { to:'/doctor/appointments',  icon:'📅', label:'Appointments' },
+    { to:'/doctor/patients',      icon:'👥', label:'My Patients' },
+    { to:'/doctor/prescriptions', icon:'💊', label:'Prescriptions' },
+    { to:'/doctor/lab-orders',    icon:'🔬', label:'Lab Orders' },
+    { to:'/doctor/slots',         icon:'🕐', label:'Manage Slots' },
   ],
   PATIENT: [
-    { section: 'Overview' },
-    { to: '/patient/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
-    { section: 'Care' },
-    { to: '/patient/appointments',icon: Calendar,       label: 'Appointments' },
-    { to: '/patient/records',    icon: FileText,        label: 'Medical Records' },
-    { to: '/patient/vitals',     icon: Activity,        label: 'Vitals' },
-    { section: 'Finance' },
-    { to: '/billing/my-bills',   icon: CreditCard,      label: 'My Bills' },
+    { to:'/patient/dashboard',    icon:'🏠', label:'Dashboard' },
+    { to:'/appointments/book',    icon:'📅', label:'Book Appointment' },
+    { to:'/patient/appointments', icon:'🗓', label:'My Appointments' },
+    { to:'/patient/records',      icon:'📋', label:'Medical Records' },
+    { to:'/patient/vitals',       icon:'❤️', label:'Vitals' },
+    { to:'/billing/my-bills',     icon:'💰', label:'My Bills' },
+  ],
+  NURSE: [
+    { to:'/nurse/dashboard', icon:'🏠', label:'Dashboard' },
+    { to:'/nurse/patients',  icon:'👥', label:'Patients' },
+    { to:'/nurse/tasks',     icon:'✅', label:'Tasks' },
+    { to:'/nurse/vitals',    icon:'❤️', label:'Record Vitals' },
+    { to:'/nurse/emar',      icon:'💊', label:'eMAR' },
+    { to:'/nurse/handover',  icon:'🔄', label:'Handover' },
+  ],
+  INDEPENDENT_NURSE: [
+    { to:'/nurse/dashboard', icon:'🏠', label:'Dashboard' },
+    { to:'/nurse/patients',  icon:'👥', label:'Patients' },
+    { to:'/nurse/tasks',     icon:'✅', label:'Tasks' },
+    { to:'/nurse/emar',      icon:'💊', label:'eMAR' },
   ],
   PHARMACIST: [
-    { section: 'Overview' },
-    { to: '/pharmacy/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { section: 'Pharmacy' },
-    { to: '/pharmacy/medicines', icon: Pill,            label: 'Medicines' },
-    { to: '/pharmacy/prescriptions',icon: ClipboardList,label: 'Prescriptions' },
-    { to: '/pharmacy/low-stock', icon: Package,         label: 'Low Stock' },
+    { to:'/pharmacy/dashboard',     icon:'🏠', label:'Dashboard' },
+    { to:'/pharmacy/medicines',     icon:'💊', label:'Medicines' },
+    { to:'/pharmacy/prescriptions', icon:'📋', label:'Prescriptions' },
   ],
   LAB_TECHNICIAN: [
-    { section: 'Overview' },
-    { to: '/lab/dashboard',      icon: LayoutDashboard, label: 'Dashboard' },
-    { section: 'Lab' },
-    { to: '/lab/orders',         icon: FlaskConical,    label: 'Orders' },
-    { to: '/lab/tests',          icon: ClipboardList,   label: 'Test Catalog' },
+    { to:'/lab/dashboard', icon:'🏠', label:'Dashboard' },
+    { to:'/lab/orders',    icon:'📋', label:'Lab Orders' },
+    { to:'/lab/tests',     icon:'🔬', label:'Test Catalog' },
   ],
-  AMBULANCE_OPERATOR: [
-    { section: 'Overview' },
-    { to: '/ambulance/dashboard',icon: LayoutDashboard, label: 'Dashboard' },
-    { section: 'Operations' },
-    { to: '/ambulance/calls',    icon: Ambulance,       label: 'Active Calls' },
-    { to: '/ambulance/fleet',    icon: Ambulance,       label: 'Fleet' },
-    { to: '/ambulance/dispatch', icon: Bell,            label: 'Dispatch' },
+  PHLEBOTOMIST: [
+    { to:'/lab/dashboard', icon:'🏠', label:'Dashboard' },
+    { to:'/lab/orders',    icon:'📋', label:'Sample Collection' },
   ],
   BLOOD_BANK_MANAGER: [
-    { section: 'Overview' },
-    { to: '/blood-bank/dashboard',icon: LayoutDashboard,label: 'Dashboard' },
-    { section: 'Blood Bank' },
-    { to: '/blood-bank/inventory',icon: Droplets,       label: 'Inventory' },
-    { to: '/blood-bank/requests', icon: Heart,          label: 'Requests' },
-    { to: '/blood-bank/donors',   icon: Users,          label: 'Donors' },
+    { to:'/blood-bank/dashboard', icon:'🏠', label:'Dashboard' },
+    { to:'/blood-bank/inventory', icon:'🩸', label:'Inventory' },
+  ],
+  AMBULANCE_OPERATOR: [
+    { to:'/ambulance/dashboard', icon:'🏠', label:'Dashboard' },
+    { to:'/ambulance/dispatch',  icon:'📡', label:'Dispatch' },
+    { to:'/ambulance/calls',     icon:'📞', label:'Calls' },
+    { to:'/ambulance/fleet',     icon:'🚑', label:'Fleet' },
   ],
   RECEPTIONIST: [
-    { section: 'Overview' },
-    { to: '/receptionist/dashboard',icon: LayoutDashboard,label: 'Dashboard' },
-    { section: 'Front Desk' },
-    { to: '/receptionist/appointments',icon: Calendar,  label: 'Appointments' },
-    { to: '/billing/dashboard',  icon: CreditCard,      label: 'Billing' },
+    { to:'/receptionist/dashboard',    icon:'🏠', label:'Dashboard' },
+    { to:'/receptionist/appointments', icon:'📅', label:'Appointments' },
+    { to:'/billing/dashboard',         icon:'💰', label:'Billing' },
   ],
 };
 
-// Fallback
-NAV.INDEPENDENT_NURSE   = NAV.NURSE;
-NAV.PHLEBOTOMIST        = NAV.LAB_TECHNICIAN;
-
-export default function Sidebar({ collapsed, mobileOpen, onMobileClose }) {
-  const { user, logout } = useAuthStore();
-  const navigate = useNavigate();
-  const navItems = (user?.role ? NAV[user.role] : []) || [];
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
-  const content = (
-    <div className="flex flex-col h-full">
-      {/* Logo */}
-      <div className={cn('flex items-center gap-3 px-4 h-16 border-b border-slate-100 flex-shrink-0', collapsed && 'justify-center px-0')}>
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center flex-shrink-0 shadow-glow">
-          <Heart className="w-5 h-5 text-white" />
-        </div>
-        {!collapsed && (
-          <div>
-            <p className="font-bold text-slate-900 text-sm leading-tight">MediChain</p>
-            <p className="text-xs text-slate-400">Hospital Suite</p>
-          </div>
-        )}
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5 scrollbar-thin no-scrollbar">
-        {navItems.map((item, i) => {
-          if (item.section) {
-            if (collapsed) return <div key={i} className="my-2 border-t border-slate-100" />;
-            return <p key={i} className="text-xs font-semibold uppercase tracking-widest text-slate-400 px-3 py-2 mt-3 mb-1 first:mt-1">{item.section}</p>;
-          }
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to.endsWith('dashboard')}
-              className={({ isActive }) => cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
-                isActive
-                  ? 'bg-primary-50 text-primary-700'
-                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100',
-                collapsed && 'justify-center px-0 w-10 h-10 mx-auto'
-              )}
-              title={collapsed ? item.label : undefined}
-            >
-              <item.icon className="w-4.5 h-4.5 flex-shrink-0" size={18} />
-              {!collapsed && <span className="truncate">{item.label}</span>}
-            </NavLink>
-          );
-        })}
-      </nav>
-
-      {/* User + Logout */}
-      <div className={cn('border-t border-slate-100 p-3 flex-shrink-0', collapsed && 'flex justify-center')}>
-        {!collapsed && (
-          <div className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-slate-50 mb-1">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-purple-500 flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-xs font-bold">
-                {user?.fullName?.[0] || user?.username?.[0] || '?'}
-              </span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-slate-900 truncate">{user?.fullName || user?.username}</p>
-              <p className="text-xs text-slate-400 truncate">{user?.role?.replace('_',' ')}</p>
-            </div>
-          </div>
-        )}
-        <button
-          onClick={handleLogout}
-          className={cn(
-            'flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm text-slate-500',
-            'hover:bg-red-50 hover:text-red-600 transition-colors',
-            collapsed && 'justify-center'
-          )}
-        >
-          <LogOut size={16} />
-          {!collapsed && 'Sign out'}
-        </button>
-      </div>
-    </div>
-  );
+export default function Sidebar({ open, onClose }) {
+  const { user } = useAuthStore();
+  const links = NAV[user?.role] || [];
 
   return (
     <>
-      {/* Desktop */}
-      <aside className={cn(
-        'hidden lg:flex flex-col fixed top-0 left-0 h-full bg-white border-r border-slate-100 z-30',
-        'transition-all duration-300 shadow-sm',
-        collapsed ? 'w-[72px]' : 'w-[260px]'
-      )}>
-        {content}
-      </aside>
-
-      {/* Mobile overlay */}
-      {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/40" onClick={onMobileClose} />
-          <aside className="relative w-[260px] bg-white h-full shadow-xl flex flex-col">
-            {content}
-          </aside>
+      {/* Overlay */}
+      {!open && <div className="hidden"/>}
+      <aside className={`${open?'w-64':'w-0 overflow-hidden'} transition-all duration-300 bg-white border-r border-gray-200 flex flex-col shrink-0`}>
+        {/* Logo */}
+        <div className="h-16 flex items-center px-6 border-b border-gray-200">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+            <span className="text-white text-sm font-bold">M</span>
+          </div>
+          <span className="font-bold text-gray-800">MediChain</span>
         </div>
-      )}
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3">
+          {links.map(({to,icon,label}) => (
+            <NavLink key={to} to={to}
+              className={({isActive}) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 text-sm font-medium transition
+                ${isActive
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'}`
+              }
+            >
+              <span className="text-base">{icon}</span>
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+        {/* User */}
+        <div className="p-4 border-t border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-semibold">
+              {user?.fullName?.[0] || 'U'}
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-sm font-semibold text-gray-800 truncate">{user?.fullName}</p>
+              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+            </div>
+          </div>
+        </div>
+      </aside>
     </>
   );
 }

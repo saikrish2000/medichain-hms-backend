@@ -50,6 +50,8 @@ public class BloodRequest {
     private String patientName;
 
     @Column(name = "reason", columnDefinition = "TEXT")
+    @Column(name = "urgency_level", length = 50)
+    private String urgencyLevel = "NORMAL";
     private String reason;
 
     @Column(name = "hospital_name", length = 200)
