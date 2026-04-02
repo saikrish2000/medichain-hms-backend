@@ -5,14 +5,13 @@ import com.hospital.exception.BadRequestException;
 import com.hospital.exception.ResourceNotFoundException;
 import com.hospital.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -32,7 +31,6 @@ public class BillingService {
         invoice.setPatient(patient);
         invoice.setStatus(Invoice.PaymentStatus.PENDING);
         invoice.setCreatedAt(LocalDateTime.now());
-
         if (appointmentId != null)
             appointmentRepo.findById(appointmentId).ifPresent(invoice::setAppointment);
 
@@ -58,16 +56,7 @@ public class BillingService {
     }
 
     @Transactional
-    public Invoice createConsultationInvoice(Long patientId, Long appointmentId,
-                                             BigDecimal fee) {
-        return createInvoice(patientId, appointmentId,
-            List.of(Map.of("description","Consultation Fee",
-                           "quantity","1","unitPrice",fee.toString())));
-    }
-
-    @Transactional
-    public Invoice markAsPaid(Long invoiceId, Invoice.PaymentMethod method,
-                              String transactionId) {
+    public Invoice markAsPaid(Long invoiceId, Invoice.PaymentMethod method, String transactionId) {
         Invoice invoice = invoiceRepo.findById(invoiceId)
             .orElseThrow(() -> new ResourceNotFoundException("Invoice","id",invoiceId));
         if (invoice.getStatus() == Invoice.PaymentStatus.PAID)
@@ -80,23 +69,30 @@ public class BillingService {
         return invoiceRepo.save(invoice);
     }
 
-    @Transactional
-    public Invoice processPartialPayment(Long invoiceId, BigDecimal amount,
-                                         Invoice.PaymentMethod method) {
-        Invoice invoice = invoiceRepo.findById(invoiceId)
-            .orElseThrow(() -> new ResourceNotFoundException("Invoice","id",invoiceId));
-        BigDecimal paid = invoice.getAmountPaid() == null
-            ? BigDecimal.ZERO : invoice.getAmountPaid();
-        invoice.setAmountPaid(paid.add(amount));
-        if (invoice.getAmountPaid().compareTo(invoice.getTotalAmount()) >= 0)
-            invoice.setStatus(Invoice.PaymentStatus.PAID);
-        else invoice.setStatus(Invoice.PaymentStatus.PARTIAL);
-        invoice.setPaymentMethod(method);
-        return invoiceRepo.save(invoice);
-    }
-
     public Invoice getInvoiceById(Long id) {
         return invoiceRepo.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Invoice","id",id));
+    }
+
+    public Page<Invoice> getAllInvoices(int page) {
+        return invoiceRepo.findAll(PageRequest.of(page, 20, Sort.by("createdAt").descending()));
+    }
+
+    public Page<Invoice> getPatientInvoices(Long patientId, int page) {
+        return invoiceRepo.findByPatientIdOrderByCreatedAtDesc(patientId, PageRequest.of(page, 15));
+    }
+
+    public Page<Invoice> getMyBills(Long userId, int page) {
+        Patient patient = patientRepo.findByUserId(userId)
+            .orElseThrow(() -> new BadRequestException("Patient not found"));
+        return getPatientInvoices(patient.getId(), page);
+    }
+
+    public Map<String,Object> getDashboardStats() {
+        Map<String,Object> stats = new LinkedHashMap<>();
+        stats.put("totalRevenue", invoiceRepo.sumPaidAmount().orElse(BigDecimal.ZERO));
+        stats.put("pendingCount", invoiceRepo.countByStatus(Invoice.PaymentStatus.PENDING));
+        stats.put("paidCount",    invoiceRepo.countByStatus(Invoice.PaymentStatus.PAID));
+        return stats;
     }
 }

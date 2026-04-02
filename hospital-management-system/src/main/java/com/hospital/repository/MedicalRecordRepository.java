@@ -9,4 +9,5 @@ import org.springframework.stereotype.Repository;
 public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, Long> {
     Page<MedicalRecord> findByPatientIdOrderByVisitDateDesc(Long patientId, Pageable pageable);
     Page<MedicalRecord> findByDoctorIdOrderByVisitDateDesc(Long doctorId, Pageable pageable);
+    long countByPatientId(Long patientId);
 }

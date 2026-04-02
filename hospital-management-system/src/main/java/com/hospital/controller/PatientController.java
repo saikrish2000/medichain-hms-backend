@@ -1,130 +1,80 @@
 package com.hospital.controller;
 
 import com.hospital.entity.*;
-import com.hospital.repository.*;
-import com.hospital.security.UserPrincipal;
 import com.hospital.service.*;
+import com.hospital.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import java.util.Map;
 
-import java.util.concurrent.atomic.AtomicLong;
-
-@Controller
-@RequestMapping("/patient")
+@RestController
+@RequestMapping("/api/patient")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('PATIENT')")
 public class PatientController {
 
-    private final PatientRepository    patientRepo;
-    private final UserRepository       userRepo;
-    private final AppointmentService   appointmentService;
-    private final MedicalRecordService recordService;
+    private final PatientService      patientService;
+    private final AppointmentService  appointmentService;
+    private final MedicalRecordService medicalRecordService;
+    private final BillingService      billingService;
 
-    private static final AtomicLong PATIENT_SEQ = new AtomicLong(10000);
-
-    // ── DASHBOARD ──────────────────────────────────────────
     @GetMapping("/dashboard")
-    public String dashboard(@AuthenticationPrincipal UserPrincipal user, Model model) {
-        Patient patient = patientRepo.findByUserId(user.getId()).orElse(null);
-        if (patient == null) return "redirect:/patient/complete-profile";
-
-        model.addAttribute("patient",      patient);
-        model.addAttribute("appointments", appointmentService.getPatientAppointments(patient.getId(), 0));
-        model.addAttribute("recentRecords", recordService.getPatientRecords(patient.getId(), 0).getContent());
-        model.addAttribute("nextAppointment", appointmentService.getNextAppointment(patient.getId()));
-        return "patient/dashboard";
+    public ResponseEntity<Map<String,Object>> dashboard(
+            @AuthenticationPrincipal UserPrincipal u) {
+        return ResponseEntity.ok(patientService.getDashboard(u.getId()));
     }
 
-    // ── COMPLETE PROFILE ───────────────────────────────────
-    @GetMapping("/complete-profile")
-    public String completeProfile(Model model) {
-        model.addAttribute("patient", new Patient());
-        return "patient/complete-profile";
-    }
-
-    @PostMapping("/profile/save")
-    public String saveProfile(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                              @RequestParam(required = false) String address,
-                              @RequestParam(required = false) String city,
-                              @RequestParam(required = false) String state,
-                              @RequestParam(required = false) String pincode,
-                              @RequestParam(required = false) String emergencyContactName,
-                              @RequestParam(required = false) String emergencyContactPhone,
-                              @RequestParam(required = false) String emergencyContactRelation,
-                              @RequestParam(required = false) String allergies,
-                              @RequestParam(required = false) String chronicConditions,
-                              @RequestParam(required = false) String insuranceProvider,
-                              @RequestParam(required = false) String insurancePolicyNumber,
-                              RedirectAttributes ra) {
-        User user = userRepo.findById(userPrincipal.getId())
-            .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // Check if profile already exists, else create
-        Patient patient = patientRepo.findByUserId(userPrincipal.getId()).orElseGet(() -> {
-            Patient p = new Patient();
-            p.setUser(user);
-            p.setPatientIdNumber("PAT-" + String.format("%06d", PATIENT_SEQ.getAndIncrement()));
-            return p;
-        });
-
-        patient.setAddress(address);
-        patient.setCity(city);
-        patient.setState(state);
-        patient.setPincode(pincode);
-        patient.setEmergencyContactName(emergencyContactName);
-        patient.setEmergencyContactPhone(emergencyContactPhone);
-        patient.setEmergencyContactRelation(emergencyContactRelation);
-        patient.setAllergies(allergies);
-        patient.setChronicConditions(chronicConditions);
-        patient.setInsuranceProvider(insuranceProvider);
-        patient.setInsurancePolicyNumber(insurancePolicyNumber);
-
-        patientRepo.save(patient);
-        ra.addFlashAttribute("success", "Profile saved successfully!");
-        return "redirect:/patient/dashboard";
-    }
-
-    // ── PROFILE VIEW ───────────────────────────────────────
     @GetMapping("/profile")
-    public String profile(@AuthenticationPrincipal UserPrincipal user, Model model) {
-        Patient patient = patientRepo.findByUserId(user.getId())
-            .orElse(null);
-        if (patient == null) return "redirect:/patient/complete-profile";
-        model.addAttribute("patient", patient);
-        return "patient/profile";
+    public ResponseEntity<?> profile(@AuthenticationPrincipal UserPrincipal u) {
+        return ResponseEntity.ok(patientService.getProfile(u.getId()));
     }
 
-    // ── MEDICAL RECORDS ────────────────────────────────────
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(@RequestBody Patient data,
+                                            @AuthenticationPrincipal UserPrincipal u) {
+        return ResponseEntity.ok(patientService.updateProfile(u.getId(), data));
+    }
+
+    // ── Appointments ─────────────────────────────────────
+    @GetMapping("/appointments")
+    public ResponseEntity<?> appointments(
+            @RequestParam(defaultValue="0") int page,
+            @AuthenticationPrincipal UserPrincipal u) {
+        Long pid = patientService.getPatientIdByUserId(u.getId());
+        return ResponseEntity.ok(appointmentService.getPatientAppointments(pid, page));
+    }
+
+    @PostMapping("/appointments/{id}/cancel")
+    public ResponseEntity<?> cancel(@PathVariable Long id,
+                                     @AuthenticationPrincipal UserPrincipal u) {
+        appointmentService.cancelByPatient(id, u.getId());
+        return ResponseEntity.ok(Map.of("message","Appointment cancelled"));
+    }
+
+    // ── Medical Records ──────────────────────────────────
     @GetMapping("/records")
-    public String records(@AuthenticationPrincipal UserPrincipal user,
-                          @RequestParam(defaultValue = "0") int page, Model model) {
-        Patient patient = patientRepo.findByUserId(user.getId())
-            .orElseThrow(() -> new RuntimeException("Patient not found"));
-        model.addAttribute("records", recordService.getPatientRecords(patient.getId(), page));
-        model.addAttribute("patient", patient);
-        return "patient/records";
+    public ResponseEntity<?> records(
+            @RequestParam(defaultValue="0") int page,
+            @AuthenticationPrincipal UserPrincipal u) {
+        Long pid = patientService.getPatientIdByUserId(u.getId());
+        return ResponseEntity.ok(medicalRecordService.getPatientRecords(pid, page));
     }
 
-    @GetMapping("/records/{id}")
-    public String recordDetail(@PathVariable Long id, Model model) {
-        model.addAttribute("record", recordService.getRecord(id));
-        return "patient/record-detail";
-    }
-
-    // ── VITALS ─────────────────────────────────────────────
     @GetMapping("/vitals")
-    public String vitals(@AuthenticationPrincipal UserPrincipal user, Model model) {
-        Patient patient = patientRepo.findByUserId(user.getId())
-            .orElseThrow(() -> new RuntimeException("Patient not found"));
-        model.addAttribute("records", recordService.getPatientRecords(patient.getId(), 0).getContent());
-        return "patient/vitals";
+    public ResponseEntity<?> vitals(@AuthenticationPrincipal UserPrincipal u) {
+        Long pid = patientService.getPatientIdByUserId(u.getId());
+        return ResponseEntity.ok(patientService.getVitals(pid));
     }
 
-    // ── OTHER STUBS ────────────────────────────────────────
-    @GetMapping("/labs")     public String labs(Model m)      { return "patient/labs"; }
-    @GetMapping("/adherence") public String adherence(Model m) { return "patient/adherence"; }
-    @GetMapping("/wearables") public String wearables(Model m) { return "patient/wearables"; }
+    // ── Billing ──────────────────────────────────────────
+    @GetMapping("/bills")
+    public ResponseEntity<?> bills(
+            @RequestParam(defaultValue="0") int page,
+            @AuthenticationPrincipal UserPrincipal u) {
+        Long pid = patientService.getPatientIdByUserId(u.getId());
+        return ResponseEntity.ok(billingService.getPatientInvoices(pid, page));
+    }
 }

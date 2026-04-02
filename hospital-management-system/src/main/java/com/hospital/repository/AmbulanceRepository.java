@@ -10,4 +10,5 @@ import java.util.List;
 public interface AmbulanceRepository extends JpaRepository<Ambulance, Long> {
     List<Ambulance> findByStatus(Ambulance.AmbulanceStatus status);
     long countByStatus(Ambulance.AmbulanceStatus status);
+    long countByIsActiveTrue();
 }

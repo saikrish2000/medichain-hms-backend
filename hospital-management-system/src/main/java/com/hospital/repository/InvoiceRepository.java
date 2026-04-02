@@ -3,7 +3,6 @@ package com.hospital.repository;
 import com.hospital.entity.Invoice;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.repository.*;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -15,6 +14,6 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     long countByStatus(Invoice.PaymentStatus status);
     long countByPatientIdAndStatus(Long patientId, Invoice.PaymentStatus status);
 
-    @Query("SELECT SUM(i.totalAmount) FROM Invoice i WHERE i.status = 'PAID'")
+    @Query("SELECT COALESCE(SUM(i.totalAmount), 0) FROM Invoice i WHERE i.status = 'PAID'")
     Optional<BigDecimal> sumPaidAmount();
 }

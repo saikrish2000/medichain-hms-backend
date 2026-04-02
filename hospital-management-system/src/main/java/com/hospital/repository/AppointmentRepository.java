@@ -14,11 +14,12 @@ import java.util.List;
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 
     Page<Appointment> findByDoctorIdAndStatus(Long doctorId, AppointmentStatus status, Pageable pageable);
-    List<Appointment> findByDoctorIdAndStatus(Long doctorId, AppointmentStatus status);
     Page<Appointment> findByDoctorId(Long doctorId, Pageable pageable);
     Page<Appointment> findByPatientId(Long patientId, Pageable pageable);
 
     List<Appointment> findByDoctorIdAndAppointmentDateOrderByAppointmentTime(Long doctorId, LocalDate date);
+    List<Appointment> findByAppointmentDateOrderByAppointmentTime(LocalDate date);
+    Page<Appointment> findByAppointmentDate(LocalDate date, Pageable pageable);
 
     long countByDoctorIdAndAppointmentDate(Long doctorId, LocalDate date);
     long countByDoctorIdAndStatus(Long doctorId, AppointmentStatus status);
@@ -31,7 +32,4 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     @Query("SELECT a FROM Appointment a WHERE a.patient.id = :patientId " +
            "AND a.appointmentDate >= CURRENT_DATE ORDER BY a.appointmentDate ASC")
     List<Appointment> findNextAppointments(@Param("patientId") Long patientId, Pageable pageable);
-
-    @Query("SELECT a FROM Appointment a WHERE a.appointmentDate = :date ORDER BY a.appointmentTime")
-    Page<Appointment> findByDate(@Param("date") LocalDate date, Pageable pageable);
 }

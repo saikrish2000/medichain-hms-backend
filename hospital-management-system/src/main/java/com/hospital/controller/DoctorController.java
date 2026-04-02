@@ -1,169 +1,172 @@
 package com.hospital.controller;
 
 import com.hospital.entity.*;
-import com.hospital.repository.*;
-import com.hospital.security.UserPrincipal;
 import com.hospital.service.*;
+import com.hospital.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.time.LocalDate;
-import java.util.List;
+import java.math.BigDecimal;
+import java.time.*;
+import java.util.*;
 
-@Controller
-@RequestMapping("/doctor")
+@RestController
+@RequestMapping("/api/doctor")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('DOCTOR')")
 public class DoctorController {
 
     private final DoctorService       doctorService;
     private final AppointmentService  appointmentService;
     private final SlotService         slotService;
-    private final PatientRepository   patientRepo;
-    private final DoctorRepository    doctorRepo;
+    private final PharmacyService     pharmacyService;
+    private final LabService          labService;
+    private final MedicalRecordService medicalRecordService;
 
-    // ── DASHBOARD ──────────────────────────────────────────
     @GetMapping("/dashboard")
-    public String dashboard(@AuthenticationPrincipal UserPrincipal user, Model model) {
-        model.addAllAttributes(doctorService.getDashboardData(user.getId()));
-        return "doctor/dashboard";
+    public ResponseEntity<Map<String,Object>> dashboard(
+            @AuthenticationPrincipal UserPrincipal u) {
+        return ResponseEntity.ok(doctorService.getDashboard(u.getId()));
     }
 
-    // ── APPOINTMENTS ───────────────────────────────────────
+    // ── Appointments ─────────────────────────────────────
     @GetMapping("/appointments")
-    public String appointments(@AuthenticationPrincipal UserPrincipal user,
-                               @RequestParam(defaultValue = "0") int page,
-                               @RequestParam(defaultValue = "pending") String filter,
-                               Model model) {
-        Doctor doctor = doctorService.getByUserId(user.getId());
-        if ("pending".equals(filter)) {
-            model.addAttribute("appointments",
-                appointmentService.getDoctorPendingAppointments(doctor.getId(), page));
-        } else {
-            model.addAttribute("appointments",
-                appointmentService.getDoctorAllAppointments(doctor.getId(), page));
-        }
-        model.addAttribute("filter", filter);
-        model.addAttribute("doctor", doctor);
-        return "doctor/appointments";
+    public ResponseEntity<?> appointments(
+            @RequestParam(defaultValue="0") int page,
+            @AuthenticationPrincipal UserPrincipal u) {
+        return ResponseEntity.ok(appointmentService.getDoctorAllAppointments(
+            doctorService.getDoctorIdByUserId(u.getId()), page));
+    }
+
+    @GetMapping("/appointments/today")
+    public ResponseEntity<?> todayAppointments(@AuthenticationPrincipal UserPrincipal u) {
+        return ResponseEntity.ok(appointmentService.getTodayAppointments(
+            doctorService.getDoctorIdByUserId(u.getId())));
     }
 
     @PostMapping("/appointments/{id}/confirm")
-    public String confirmAppointment(@PathVariable Long id,
-                                      @AuthenticationPrincipal UserPrincipal user,
-                                      RedirectAttributes ra) {
-        try {
-            appointmentService.confirmAppointment(id, user.getId());
-            ra.addFlashAttribute("success", "Appointment confirmed.");
-        } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/doctor/appointments";
+    public ResponseEntity<?> confirm(@PathVariable Long id,
+                                      @AuthenticationPrincipal UserPrincipal u) {
+        appointmentService.confirmAppointment(id, u.getId());
+        return ResponseEntity.ok(Map.of("message","Appointment confirmed"));
     }
 
     @PostMapping("/appointments/{id}/reject")
-    public String rejectAppointment(@PathVariable Long id,
-                                     @RequestParam(defaultValue = "Schedule conflict") String reason,
-                                     @AuthenticationPrincipal UserPrincipal user,
-                                     RedirectAttributes ra) {
-        try {
-            appointmentService.rejectAppointment(id, user.getId(), reason);
-            ra.addFlashAttribute("success", "Appointment rejected.");
-        } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/doctor/appointments";
+    public ResponseEntity<?> reject(@PathVariable Long id,
+                                     @RequestBody Map<String,String> body,
+                                     @AuthenticationPrincipal UserPrincipal u) {
+        appointmentService.rejectAppointment(id, u.getId(), body.get("reason"));
+        return ResponseEntity.ok(Map.of("message","Appointment rejected"));
     }
 
     @PostMapping("/appointments/{id}/complete")
-    public String completeAppointment(@PathVariable Long id,
-                                       @AuthenticationPrincipal UserPrincipal user,
-                                       RedirectAttributes ra) {
-        appointmentService.completeAppointment(id, user.getId());
-        ra.addFlashAttribute("success", "Appointment marked as complete.");
-        return "redirect:/doctor/appointments";
+    public ResponseEntity<?> complete(@PathVariable Long id,
+                                       @AuthenticationPrincipal UserPrincipal u) {
+        appointmentService.completeAppointment(id, u.getId());
+        return ResponseEntity.ok(Map.of("message","Appointment completed"));
     }
 
-    // ── SLOTS ──────────────────────────────────────────────
+    @PostMapping("/appointments/{id}/no-show")
+    public ResponseEntity<?> noShow(@PathVariable Long id,
+                                     @AuthenticationPrincipal UserPrincipal u) {
+        appointmentService.markNoShow(id, u.getId());
+        return ResponseEntity.ok(Map.of("message","Marked as no-show"));
+    }
+
+    // ── Slots ────────────────────────────────────────────
     @GetMapping("/slots")
-    public String slots(@AuthenticationPrincipal UserPrincipal user,
-                        @RequestParam(defaultValue = "0") int weekOffset,
-                        Model model) {
-        Doctor doctor = doctorService.getByUserId(user.getId());
-        LocalDate weekStart = LocalDate.now().plusWeeks(weekOffset).with(
-            java.time.DayOfWeek.MONDAY);
-        model.addAttribute("doctor",     doctor);
-        model.addAttribute("weekSlots",  slotService.getWeekCalendar(doctor.getId(), weekStart));
-        model.addAttribute("weekStart",  weekStart);
-        model.addAttribute("weekOffset", weekOffset);
-        return "doctor/slots";
+    public ResponseEntity<?> slots(@AuthenticationPrincipal UserPrincipal u) {
+        return ResponseEntity.ok(slotService.getDoctorSlots(
+            doctorService.getDoctorIdByUserId(u.getId())));
     }
 
-    @PostMapping("/slots/add-specific")
-    public String addSpecificSlot(@AuthenticationPrincipal UserPrincipal user,
-                                   @ModelAttribute DoctorSlot form,
-                                   RedirectAttributes ra) {
-        try {
-            Doctor doctor = doctorService.getByUserId(user.getId());
-            slotService.createSpecificSlot(doctor.getId(), form);
-            ra.addFlashAttribute("success", "Slot added.");
-        } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/doctor/slots";
+    @PostMapping("/slots/specific")
+    public ResponseEntity<?> createSpecific(@RequestBody Map<String,Object> body,
+                                             @AuthenticationPrincipal UserPrincipal u) {
+        Long docId = doctorService.getDoctorIdByUserId(u.getId());
+        DoctorSlot form = new DoctorSlot();
+        form.setSlotDate(LocalDate.parse((String) body.get("slotDate")));
+        form.setStartTime(LocalTime.parse((String) body.get("startTime")));
+        form.setEndTime(LocalTime.parse((String) body.get("endTime")));
+        form.setDurationMinutes((Integer) body.getOrDefault("durationMinutes", 30));
+        form.setMaxPatients((Integer) body.getOrDefault("maxPatients", 1));
+        return ResponseEntity.ok(slotService.createSpecificSlot(docId, form));
     }
 
-    @PostMapping("/slots/add-recurring")
-    public String addRecurringSlot(@AuthenticationPrincipal UserPrincipal user,
-                                    @RequestParam String dayOfWeek,
-                                    @RequestParam String slotTime,
-                                    @RequestParam(defaultValue = "30") int durationMinutes,
-                                    @RequestParam(defaultValue = "1") int maxPatients,
-                                    @RequestParam(required = false) String endDate,
-                                    RedirectAttributes ra) {
-        try {
-            Doctor doctor = doctorService.getByUserId(user.getId());
-            LocalDate end = (endDate != null && !endDate.isBlank())
-                ? LocalDate.parse(endDate) : LocalDate.now().plusWeeks(8);
-            slotService.createRecurringSlots(doctor.getId(),
-                java.time.DayOfWeek.valueOf(dayOfWeek.toUpperCase()),
-                java.time.LocalTime.parse(slotTime),
-                durationMinutes, maxPatients,
-                LocalDate.now(), end);
-            ra.addFlashAttribute("success", "Recurring slots created.");
-        } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/doctor/slots";
+    @PostMapping("/slots/{id}/block")
+    public ResponseEntity<?> blockSlot(@PathVariable Long id,
+                                        @RequestBody Map<String,String> body) {
+        slotService.blockSlot(id, body.getOrDefault("reason","Blocked"));
+        return ResponseEntity.ok(Map.of("message","Slot blocked"));
     }
 
-    @PostMapping("/slots/{id}/toggle-block")
-    public String toggleSlotBlock(@PathVariable Long id, RedirectAttributes ra) {
-        slotService.toggleSlotBlock(id);
-        ra.addFlashAttribute("success", "Slot status updated.");
-        return "redirect:/doctor/slots";
+    @PostMapping("/slots/{id}/unblock")
+    public ResponseEntity<?> unblockSlot(@PathVariable Long id) {
+        slotService.unblockSlot(id);
+        return ResponseEntity.ok(Map.of("message","Slot unblocked"));
     }
 
-    // ── PATIENTS ───────────────────────────────────────────
+    @DeleteMapping("/slots/{id}")
+    public ResponseEntity<?> deleteSlot(@PathVariable Long id) {
+        slotService.deleteSlot(id);
+        return ResponseEntity.ok(Map.of("message","Slot deleted"));
+    }
+
+    // ── Patients ─────────────────────────────────────────
     @GetMapping("/patients")
-    public String patients(@AuthenticationPrincipal UserPrincipal user,
-                            @RequestParam(defaultValue = "0") int page,
-                            Model model) {
-        model.addAttribute("patients",
-            doctorService.getDoctorPatients(user.getId(), page));
-        return "doctor/patients";
+    public ResponseEntity<?> patients(
+            @RequestParam(defaultValue="0") int page,
+            @AuthenticationPrincipal UserPrincipal u) {
+        return ResponseEntity.ok(doctorService.getDoctorPatients(u.getId(), page));
     }
 
-    // ── PLACEHOLDER ROUTES ─────────────────────────────────
-    @GetMapping("/prescriptions")
-    public String prescriptions(Model model) { return "doctor/prescriptions"; }
+    // ── Medical Records ──────────────────────────────────
+    @GetMapping("/records/{patientId}")
+    public ResponseEntity<?> records(@PathVariable Long patientId,
+                                      @RequestParam(defaultValue="0") int page) {
+        return ResponseEntity.ok(medicalRecordService.getPatientRecords(patientId, page));
+    }
 
-    @GetMapping("/telehealth")
-    public String telehealth(Model model) { return "doctor/telehealth"; }
+    @PostMapping("/records")
+    public ResponseEntity<?> addRecord(@RequestBody MedicalRecord record,
+                                        @AuthenticationPrincipal UserPrincipal u) {
+        return ResponseEntity.ok(medicalRecordService.addRecord(record, u.getId()));
+    }
 
-    @GetMapping("/ot-planner")
-    public String otPlanner(Model model) { return "doctor/ot-planner"; }
+    // ── Prescriptions ────────────────────────────────────
+    @PostMapping("/prescriptions")
+    public ResponseEntity<?> createPrescription(@RequestBody Map<String,Object> body,
+                                                  @AuthenticationPrincipal UserPrincipal u) {
+        Long docId    = doctorService.getDoctorIdByUserId(u.getId());
+        Long patId    = Long.parseLong(body.get("patientId").toString());
+        Long apptId   = body.containsKey("appointmentId") ?
+                        Long.parseLong(body.get("appointmentId").toString()) : null;
+        String notes  = (String) body.getOrDefault("notes","");
+        @SuppressWarnings("unchecked")
+        List<Map<String,Object>> items = (List<Map<String,Object>>) body.get("items");
+        return ResponseEntity.ok(pharmacyService.createPrescription(patId, docId, apptId, notes, items));
+    }
+
+    // ── Lab Orders ───────────────────────────────────────
+    @GetMapping("/lab-orders")
+    public ResponseEntity<?> labOrders(
+            @RequestParam(defaultValue="0") int page,
+            @AuthenticationPrincipal UserPrincipal u) {
+        return ResponseEntity.ok(labService.getDoctorOrders(
+            doctorService.getDoctorIdByUserId(u.getId()), page));
+    }
+
+    @PostMapping("/lab-orders")
+    public ResponseEntity<?> createLabOrder(@RequestBody Map<String,Object> body,
+                                             @AuthenticationPrincipal UserPrincipal u) {
+        Long docId  = doctorService.getDoctorIdByUserId(u.getId());
+        Long patId  = Long.parseLong(body.get("patientId").toString());
+        String notes = (String) body.getOrDefault("clinicalNotes","");
+        @SuppressWarnings("unchecked")
+        List<Long> testIds = (List<Long>) body.get("testIds");
+        return ResponseEntity.ok(labService.createOrder(patId, docId, testIds, notes));
+    }
 }

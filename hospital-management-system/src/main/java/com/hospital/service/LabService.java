@@ -10,9 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +23,8 @@ public class LabService {
     private final DoctorRepository    doctorRepo;
     private final UserRepository      userRepo;
 
+    public List<LabTest> getAllTests() { return testRepo.findAll(Sort.by("name")); }
+
     public LabTest saveTest(LabTest test) { return testRepo.save(test); }
 
     @Transactional
@@ -34,16 +34,13 @@ public class LabService {
             .orElseThrow(() -> new ResourceNotFoundException("Patient","id",patientId));
         Doctor doctor = doctorRepo.findById(doctorId)
             .orElseThrow(() -> new ResourceNotFoundException("Doctor","id",doctorId));
-
         LabOrder order = new LabOrder();
         order.setPatient(patient);
         order.setDoctor(doctor);
         order.setClinicalNotes(clinicalNotes);
         order.setStatus(LabOrder.OrderStatus.ORDERED);
         order.setCreatedAt(LocalDateTime.now());
-
-        List<LabTest> tests = testRepo.findAllById(testIds);
-        order.setTests(tests);
+        if (testIds != null) order.setTests(testRepo.findAllById(testIds));
         return orderRepo.save(order);
     }
 
@@ -53,9 +50,7 @@ public class LabService {
             .orElseThrow(() -> new ResourceNotFoundException("LabOrder","id",orderId));
         order.setStatus(LabOrder.OrderStatus.SAMPLE_COLLECTED);
         order.setSampleCollectedAt(LocalDateTime.now());
-        User tech = userRepo.findById(technician.getId())
-            .orElseThrow(() -> new ResourceNotFoundException("User","id",technician.getId()));
-        order.setCollectedBy(tech);
+        userRepo.findById(technician.getId()).ifPresent(order::setCollectedBy);
         return orderRepo.save(order);
     }
 
@@ -64,7 +59,6 @@ public class LabService {
                                  String notes, UserPrincipal technician) {
         LabOrder order = orderRepo.findById(orderId)
             .orElseThrow(() -> new ResourceNotFoundException("LabOrder","id",orderId));
-
         List<LabResult> results = new ArrayList<>();
         for (Map<String,Object> rd : resultData) {
             LabResult r = new LabResult();
@@ -90,7 +84,18 @@ public class LabService {
     }
 
     public Page<LabOrder> getDoctorOrders(Long doctorId, int page) {
-        return orderRepo.findByDoctorId(doctorId, PageRequest.of(page,15,
-            Sort.by("createdAt").descending()));
+        return orderRepo.findByDoctorId(doctorId, PageRequest.of(page,15, Sort.by("createdAt").descending()));
+    }
+
+    public Page<LabOrder> getAllOrders(int page) {
+        return orderRepo.findAll(PageRequest.of(page, 20, Sort.by("createdAt").descending()));
+    }
+
+    public Map<String,Object> getDashboardStats() {
+        Map<String,Object> s = new LinkedHashMap<>();
+        s.put("totalOrders",    orderRepo.count());
+        s.put("pendingOrders",  orderRepo.countByStatus(LabOrder.OrderStatus.ORDERED));
+        s.put("completedToday", 0); // simplified
+        return s;
     }
 }

@@ -10,32 +10,27 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class BloodBankService {
 
-    private final BloodBankRepository     bankRepo;
+    private final BloodBankRepository      bankRepo;
     private final BloodInventoryRepository inventoryRepo;
-    private final BloodRequestRepository  requestRepo;
-    private final BloodDonationRepository donationRepo;
-    private final UserRepository          userRepo;
+    private final BloodRequestRepository   requestRepo;
+    private final BloodDonationRepository  donationRepo;
+    private final UserRepository           userRepo;
 
-    @Transactional
-    public BloodInventory updateStock(Long bankId, BloodGroup group, int units) {
-        BloodInventory inv = inventoryRepo.findByBankIdAndBloodGroup(bankId, group)
-            .orElseGet(() -> {
-                BloodInventory i = new BloodInventory();
-                BloodBank bank = bankRepo.findById(bankId)
-                    .orElseThrow(() -> new ResourceNotFoundException("BloodBank","id",bankId));
-                i.setBank(bank);
-                i.setBloodGroup(group);
-                i.setAvailableUnits(0);
-                return i;
-            });
-        inv.setAvailableUnits(inv.getAvailableUnits() + units);
-        return inventoryRepo.save(inv);
+    public Map<String,Object> getDashboardStats() {
+        Map<String,Object> s = new LinkedHashMap<>();
+        s.put("totalUnits",     inventoryRepo.sumTotalUnits().orElse(0L));
+        s.put("pendingRequests",requestRepo.countByStatus(BloodRequest.RequestStatus.PENDING));
+        s.put("inventory",      inventoryRepo.findAll());
+        return s;
     }
+
+    public List<BloodInventory> getAllInventory() { return inventoryRepo.findAll(); }
 
     @Transactional
     public BloodInventory setStock(Long bankId, BloodGroup group, int units, int threshold) {
@@ -44,12 +39,23 @@ public class BloodBankService {
                 BloodInventory i = new BloodInventory();
                 BloodBank bank = bankRepo.findById(bankId)
                     .orElseThrow(() -> new ResourceNotFoundException("BloodBank","id",bankId));
-                i.setBank(bank);
-                i.setBloodGroup(group);
-                return i;
+                i.setBank(bank); i.setBloodGroup(group); return i;
             });
         inv.setAvailableUnits(units);
         inv.setMinimumThreshold(threshold);
+        return inventoryRepo.save(inv);
+    }
+
+    @Transactional
+    public BloodInventory updateStock(Long bankId, BloodGroup group, int units) {
+        BloodInventory inv = inventoryRepo.findByBankIdAndBloodGroup(bankId, group)
+            .orElseGet(() -> {
+                BloodInventory i = new BloodInventory();
+                BloodBank bank = bankRepo.findById(bankId)
+                    .orElseThrow(() -> new ResourceNotFoundException("BloodBank","id",bankId));
+                i.setBank(bank); i.setBloodGroup(group); i.setAvailableUnits(0); return i;
+            });
+        inv.setAvailableUnits(inv.getAvailableUnits() + units);
         return inventoryRepo.save(inv);
     }
 
@@ -60,14 +66,9 @@ public class BloodBankService {
             .orElseThrow(() -> new ResourceNotFoundException("BloodBank","id",bankId));
         User user = userRepo.findById(userId)
             .orElseThrow(() -> new ResourceNotFoundException("User","id",userId));
-
         BloodRequest req = new BloodRequest();
-        req.setBank(bank);
-        req.setRequestedBy(user);
-        req.setBloodGroup(group);
-        req.setUnitsRequested(units);
-        req.setUrgencyLevel(urgency);
-        req.setReason(reason);
+        req.setBank(bank); req.setRequestedBy(user); req.setBloodGroup(group);
+        req.setUnitsRequested(units); req.setUrgencyLevel(urgency); req.setReason(reason);
         req.setStatus(BloodRequest.RequestStatus.PENDING);
         req.setCreatedAt(LocalDateTime.now());
         return requestRepo.save(req);
@@ -77,21 +78,16 @@ public class BloodBankService {
     public void approveRequest(Long requestId, int unitsApproved, Long reviewerUserId) {
         BloodRequest req = requestRepo.findById(requestId)
             .orElseThrow(() -> new ResourceNotFoundException("BloodRequest","id",requestId));
-        User reviewer = userRepo.findById(reviewerUserId)
-            .orElseThrow(() -> new ResourceNotFoundException("User","id",reviewerUserId));
-
         BloodInventory inv = inventoryRepo.findByBankIdAndBloodGroup(
             req.getBank().getId(), req.getBloodGroup())
-            .orElseThrow(() -> new BadRequestException("No inventory record found"));
+            .orElseThrow(() -> new BadRequestException("No inventory found"));
         if (inv.getAvailableUnits() < unitsApproved)
-            throw new BadRequestException("Insufficient stock: only "+inv.getAvailableUnits()+" units available");
-
+            throw new BadRequestException("Insufficient stock: " + inv.getAvailableUnits() + " units");
         inv.setAvailableUnits(inv.getAvailableUnits() - unitsApproved);
         inventoryRepo.save(inv);
-
         req.setStatus(BloodRequest.RequestStatus.APPROVED);
         req.setUnitsApproved(unitsApproved);
-        req.setReviewedBy(reviewer);
+        userRepo.findById(reviewerUserId).ifPresent(req::setReviewedBy);
         req.setReviewedAt(LocalDateTime.now());
         requestRepo.save(req);
     }
@@ -100,30 +96,24 @@ public class BloodBankService {
     public void rejectRequest(Long requestId, String reason, Long reviewerUserId) {
         BloodRequest req = requestRepo.findById(requestId)
             .orElseThrow(() -> new ResourceNotFoundException("BloodRequest","id",requestId));
-        User reviewer = userRepo.findById(reviewerUserId)
-            .orElseThrow(() -> new ResourceNotFoundException("User","id",reviewerUserId));
         req.setStatus(BloodRequest.RequestStatus.REJECTED);
         req.setRejectionReason(reason);
-        req.setReviewedBy(reviewer);
+        userRepo.findById(reviewerUserId).ifPresent(req::setReviewedBy);
         req.setReviewedAt(LocalDateTime.now());
         requestRepo.save(req);
     }
 
     @Transactional
-    public BloodDonation registerDonation(Long bankId, Long donorUserId,
-                                          BloodGroup group, int units) {
+    public BloodDonation registerDonation(Long bankId, Long donorUserId, BloodGroup group, int units) {
         BloodBank bank = bankRepo.findById(bankId)
             .orElseThrow(() -> new ResourceNotFoundException("BloodBank","id",bankId));
         User donor = userRepo.findById(donorUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User","id",donorUserId));
-        BloodDonation donation = new BloodDonation();
-        donation.setBank(bank);
-        donation.setDonor(donor);
-        donation.setBloodGroup(group);
-        donation.setUnitsCollected(units);
-        donation.setStatus(BloodDonation.DonationStatus.PENDING);
-        donation.setDonationDate(LocalDateTime.now());
-        return donationRepo.save(donation);
+        BloodDonation d = new BloodDonation();
+        d.setBank(bank); d.setDonor(donor); d.setBloodGroup(group);
+        d.setUnitsCollected(units); d.setStatus(BloodDonation.DonationStatus.PENDING);
+        d.setDonationDate(LocalDateTime.now());
+        return donationRepo.save(d);
     }
 
     @Transactional
@@ -132,12 +122,10 @@ public class BloodBankService {
             .orElseThrow(() -> new ResourceNotFoundException("BloodDonation","id",donationId));
         donation.setStatus(BloodDonation.DonationStatus.ACCEPTED);
         donationRepo.save(donation);
-        updateStock(donation.getBank().getId(), donation.getBloodGroup(),
-            donation.getUnitsCollected());
+        updateStock(donation.getBank().getId(), donation.getBloodGroup(), donation.getUnitsCollected());
     }
 
-    public BloodRequest getRequest(Long id) {
-        return requestRepo.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("BloodRequest","id",id));
+    public List<BloodDonation> getAllDonations() {
+        return donationRepo.findAll();
     }
 }

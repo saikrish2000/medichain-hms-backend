@@ -13,35 +13,38 @@ import java.time.LocalDateTime;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Doctor {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", unique = true, nullable = false)
     private User user;
 
-    @Column(name = "license_number", unique = true, nullable = false, length = 100)
+    @Column(name = "license_number", unique = true, length = 100)
     private String licenseNumber;
 
     @Column(name = "license_document_url", length = 500)
     private String licenseDocumentUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "specialization_id", nullable = false)
+    @JoinColumn(name = "specialization_id")
     private Specialization specialization;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id", nullable = false)
+    @JoinColumn(name = "department_id")
     private Department department;
 
-    @Column(nullable = false, length = 255)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branch_id")
+    private HospitalBranch branch;
+
+    @Column(length = 255)
     private String qualification;
 
     @Column(name = "experience_years")
     private Integer experienceYears = 0;
 
-    @Column(name = "consultation_fee", nullable = false, precision = 10, scale = 2)
+    @Column(name = "consultation_fee", precision = 10, scale = 2)
     private BigDecimal consultationFee;
 
     @Column(columnDefinition = "TEXT")
@@ -51,22 +54,8 @@ public class Doctor {
     @Column(name = "approval_status")
     private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "approved_by")
-    private User approvedBy;
-
-    @Column(name = "approved_at")
-    private LocalDateTime approvedAt;
-
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "background_check_status")
-    private BackgroundCheckStatus backgroundCheckStatus = BackgroundCheckStatus.PENDING;
-
-    @Column(name = "background_check_notes", columnDefinition = "TEXT")
-    private String backgroundCheckNotes;
 
     @Column(precision = 3, scale = 2)
     private BigDecimal rating = BigDecimal.ZERO;
@@ -85,6 +74,6 @@ public class Doctor {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public enum ApprovalStatus { PENDING, APPROVED, REJECTED, SUSPENDED }
+    public enum ApprovalStatus    { PENDING, APPROVED, REJECTED, SUSPENDED }
     public enum BackgroundCheckStatus { PENDING, PASSED, FAILED }
 }

@@ -1,46 +1,50 @@
 package com.hospital.controller;
 
-import com.hospital.service.ReceptionistService;
+import com.hospital.service.*;
+import com.hospital.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
 import java.time.LocalDate;
+import java.util.Map;
 
-@Controller
-@RequestMapping("/receptionist")
+@RestController
+@RequestMapping("/api/receptionist")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('RECEPTIONIST','ADMIN')")
 public class ReceptionistController {
 
     private final ReceptionistService receptionistService;
+    private final AppointmentService  appointmentService;
+    private final AdminService        adminService;
 
     @GetMapping("/dashboard")
-    public String dashboard(Model model) {
-        model.addAllAttributes(receptionistService.getDashboardStats());
-        return "receptionist/dashboard";
+    public ResponseEntity<?> dashboard() {
+        return ResponseEntity.ok(receptionistService.getDashboardStats());
+    }
+
+    @GetMapping("/appointments/today")
+    public ResponseEntity<?> todayAppts() {
+        return ResponseEntity.ok(receptionistService.getTodayAppointments());
     }
 
     @GetMapping("/appointments")
-    public String appointments(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam(defaultValue = "0") int page,
-            Model model) {
-        model.addAttribute("appointments", receptionistService.searchAppointments(date, page));
-        model.addAttribute("selectedDate", date != null ? date : LocalDate.now());
-        return "receptionist/appointments";
+    public ResponseEntity<?> appointments(
+            @RequestParam(required=false) String date,
+            @RequestParam(defaultValue="0") int page) {
+        LocalDate d = date != null ? LocalDate.parse(date) : LocalDate.now();
+        return ResponseEntity.ok(receptionistService.getAppointmentsByDate(d, page));
     }
 
     @PostMapping("/appointments/{id}/checkin")
-    public String checkIn(@PathVariable Long id, RedirectAttributes ra) {
-        try {
-            receptionistService.checkIn(id);
-            ra.addFlashAttribute("success", "Patient checked in!");
-        } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/receptionist/appointments";
+    public ResponseEntity<?> checkIn(@PathVariable Long id) {
+        return ResponseEntity.ok(receptionistService.checkIn(id));
+    }
+
+    @GetMapping("/patients/search")
+    public ResponseEntity<?> searchPatients(@RequestParam String q) {
+        return ResponseEntity.ok(receptionistService.searchPatients(q));
     }
 }

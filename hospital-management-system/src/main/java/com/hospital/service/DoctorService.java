@@ -1,8 +1,7 @@
 package com.hospital.service;
 
 import com.hospital.entity.*;
-import com.hospital.entity.Appointment.AppointmentStatus;
-import com.hospital.entity.Doctor.ApprovalStatus;
+import com.hospital.exception.BadRequestException;
 import com.hospital.exception.ResourceNotFoundException;
 import com.hospital.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -17,74 +16,46 @@ import java.util.*;
 public class DoctorService {
 
     private final DoctorRepository      doctorRepo;
-    private final AppointmentRepository appointmentRepo;
-    private final MedicalRecordRepository recordRepo;
     private final PatientRepository     patientRepo;
+    private final AppointmentRepository appointmentRepo;
+    private final DoctorSlotRepository  slotRepo;
+    private final SpecializationRepository specRepo;
+    private final HospitalBranchRepository branchRepo;
 
-    // ── DASHBOARD DATA ────────────────────────────────────
-
-    public Map<String, Object> getDashboardData(Long doctorUserId) {
-        Doctor doctor = doctorRepo.findByUserId(doctorUserId)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "userId", doctorUserId));
-
-        LocalDate today = LocalDate.now();
-
-        long todayCount   = appointmentRepo.countByDoctorIdAndAppointmentDate(doctor.getId(), today);
-        long pendingCount = appointmentRepo.countByDoctorIdAndStatus(doctor.getId(), AppointmentStatus.PENDING);
-        long totalPatients= appointmentRepo.countDistinctPatientsByDoctorId(doctor.getId());
-
-        // Today's appointments for timeline
-        List<Appointment> todayList = appointmentRepo
-            .findByDoctorIdAndAppointmentDateOrderByAppointmentTime(doctor.getId(), today);
-
-        // Pending for quick-approve widget
-        List<Appointment> pendingAppts = appointmentRepo
-            .findByDoctorIdAndStatus(doctor.getId(), AppointmentStatus.PENDING,
-                PageRequest.of(0, 5)).getContent();
-
-        // Featured patient: first confirmed today
-        Patient featuredPatient = null;
-        MedicalRecord featuredRecord = null;
-        if (!todayList.isEmpty()) {
-            featuredPatient = todayList.get(0).getPatient();
-            List<MedicalRecord> records = recordRepo
-                .findByPatientIdOrderByVisitDateDesc(featuredPatient.getId(),
-                    PageRequest.of(0, 1)).getContent();
-            if (!records.isEmpty()) featuredRecord = records.get(0);
-        }
-
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("doctorName",       doctor.getUser().getFullName());
-        data.put("specialization",   doctor.getSpecialization().getName());
-        data.put("department",       doctor.getDepartment().getName());
-        data.put("doctor",           doctor);
-        data.put("todayAppointments",todayCount);
-        data.put("pendingCount",     pendingCount);
-        data.put("totalPatients",    totalPatients);
-        data.put("todayList",        todayList);
-        data.put("pendingAppts",     pendingAppts);
-        data.put("featuredPatient",  featuredPatient);
-        data.put("featuredRecord",   featuredRecord);
-        return data;
-    }
-
-    // ── PATIENTS ──────────────────────────────────────────
-
-    public Page<Patient> getDoctorPatients(Long doctorUserId, int page) {
-        Doctor doctor = doctorRepo.findByUserId(doctorUserId)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "userId", doctorUserId));
-        return patientRepo.findByDoctorId(doctor.getId(),
-            PageRequest.of(page, 15, Sort.by("id").descending()));
-    }
-
-    // ── SEARCH ────────────────────────────────────────────
-
-    public Page<Doctor> search(String q, int page) {
-        return doctorRepo.search(q, PageRequest.of(page, 20));
-    }
-
-    public Doctor getByUserId(Long userId) {
+    public Long getDoctorIdByUserId(Long userId) {
         return doctorRepo.findByUserId(userId)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "userId", userId));
+            .orElseThrow(() -> new BadRequestException("Doctor profile not found"))
+            .getId();
+    }
+
+    public Map<String,Object> getDashboard(Long userId) {
+        Doctor doctor = doctorRepo.findByUserId(userId)
+            .orElseThrow(() -> new BadRequestException("Doctor profile not found"));
+        Long docId = doctor.getId();
+        Map<String,Object> stats = new LinkedHashMap<>();
+        stats.put("doctor", doctor);
+        stats.put("todayAppointments",     appointmentRepo.countByDoctorIdAndAppointmentDate(docId, LocalDate.now()));
+        stats.put("pendingAppointments",   appointmentRepo.countByDoctorIdAndStatus(docId, Appointment.AppointmentStatus.PENDING));
+        stats.put("totalPatients",         appointmentRepo.countDistinctPatientsByDoctorId(docId));
+        stats.put("todaySchedule",         appointmentRepo.findByDoctorIdAndAppointmentDateOrderByAppointmentTime(docId, LocalDate.now()));
+        return stats;
+    }
+
+    public Page<Patient> getDoctorPatients(Long userId, int page) {
+        Long docId = getDoctorIdByUserId(userId);
+        return patientRepo.findByDoctorId(docId, PageRequest.of(page, 15, Sort.by("id").descending()));
+    }
+
+    public List<Doctor> getAvailableDoctors(Long specializationId, Long branchId) {
+        if (specializationId != null && branchId != null)
+            return doctorRepo.findBySpecializationIdAndApprovalStatusAndBranchId(
+                specializationId, Doctor.ApprovalStatus.APPROVED, branchId);
+        if (specializationId != null)
+            return doctorRepo.findBySpecializationIdAndApprovalStatus(specializationId, Doctor.ApprovalStatus.APPROVED);
+        return doctorRepo.findByApprovalStatus(Doctor.ApprovalStatus.APPROVED);
+    }
+
+    public List<DoctorSlot> getAvailableSlots(Long doctorId, LocalDate date) {
+        return slotRepo.findAvailableSlots(doctorId, date);
     }
 }

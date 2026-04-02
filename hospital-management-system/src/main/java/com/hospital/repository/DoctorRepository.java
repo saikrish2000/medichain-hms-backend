@@ -16,12 +16,12 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
     List<Doctor>     findByApprovalStatus(Doctor.ApprovalStatus status);
     long             countByApprovalStatus(Doctor.ApprovalStatus status);
     List<Doctor>     findBySpecializationId(Long specId);
-    List<Doctor>     findBySpecializationIdAndApprovalStatusAndBranchId(
-                         Long specId, Doctor.ApprovalStatus status, Long branchId);
+    List<Doctor>     findBySpecializationIdAndApprovalStatus(Long specId, Doctor.ApprovalStatus status);
 
-    @Query("SELECT d FROM Doctor d JOIN d.user u " +
-           "WHERE LOWER(u.firstName) LIKE LOWER(CONCAT('%',:q,'%')) " +
-           "OR LOWER(u.lastName)  LIKE LOWER(CONCAT('%',:q,'%')) " +
-           "OR LOWER(d.specialization.name) LIKE LOWER(CONCAT('%',:q,'%'))")
-    Page<Doctor> search(@Param("q") String q, Pageable pageable);
+    @Query("SELECT d FROM Doctor d WHERE d.specialization.id = :specId " +
+           "AND d.approvalStatus = :status AND d.branch.id = :branchId")
+    List<Doctor> findBySpecializationIdAndApprovalStatusAndBranchId(
+        @Param("specId") Long specId,
+        @Param("status") Doctor.ApprovalStatus status,
+        @Param("branchId") Long branchId);
 }
