@@ -3,10 +3,12 @@ package com.hospital.repository;
 import com.hospital.entity.Specialization;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SpecializationRepository extends JpaRepository<Specialization, Long> {
-    List<Specialization> findByIsActive(Boolean isActive);
-    List<Specialization> findByDepartmentIdAndIsActive(Long departmentId, Boolean isActive);
+    Optional<Specialization> findByName(String name);
+    List<Specialization> findByIsActiveTrue();
 }

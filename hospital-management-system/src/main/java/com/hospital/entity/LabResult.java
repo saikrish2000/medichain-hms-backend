@@ -2,9 +2,9 @@ package com.hospital.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "lab_results")
+@Entity @Table(name = "lab_results")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class LabResult {
 
@@ -12,24 +12,38 @@ public class LabResult {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
-    private LabOrder order;
+    @JoinColumn(name = "lab_order_id")
+    private LabOrder labOrder;
 
-    @Column(name = "test_name", length = 200)
-    private String testName;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lab_test_id")
+    private LabTest labTest;
 
-    @Column(length = 500)
-    private String result;
-
-    @Column(length = 50)
-    private String unit;
+    @Column(name = "result_value", columnDefinition = "TEXT")
+    private String resultValue;
 
     @Column(name = "reference_range", length = 100)
     private String referenceRange;
 
+    @Column(name = "unit", length = 50)
+    private String unit;
+
     @Column(name = "is_abnormal")
     private Boolean isAbnormal = false;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
+
+    @Column(name = "result_document_url", length = 500)
+    private String resultDocumentUrl;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "entered_by")
+    private User enteredBy;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() { createdAt = LocalDateTime.now(); }
 }

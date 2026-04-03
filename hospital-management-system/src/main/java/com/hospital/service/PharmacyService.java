@@ -63,7 +63,7 @@ public class PharmacyService {
         rx.setPatient(patient);
         rx.setDoctor(doctor);
         rx.setNotes(notes);
-        rx.setStatus(Prescription.Status.PENDING);
+        rx.setStatus(PENDING);
         rx.setCreatedAt(LocalDateTime.now());
         if (appointmentId != null)
             appointmentRepo.findById(appointmentId).ifPresent(rx::setAppointment);
@@ -91,7 +91,7 @@ public class PharmacyService {
     public Prescription dispensePrescription(Long id, UserPrincipal pharmacist) {
         Prescription rx = prescriptionRepo.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Prescription","id",id));
-        if (rx.getStatus() == Prescription.Status.DISPENSED)
+        if (rx.getStatus() == DISPENSED)
             throw new BadRequestException("Already dispensed");
         for (PrescriptionItem item : rx.getItems()) {
             Medicine med = item.getMedicine();
@@ -101,14 +101,14 @@ public class PharmacyService {
                 medicineRepo.save(med);
             }
         }
-        rx.setStatus(Prescription.Status.DISPENSED);
+        rx.setStatus(DISPENSED);
         rx.setDispensedAt(LocalDateTime.now());
         rx.setDispensedBy(pharmacist.getId());
         return prescriptionRepo.save(rx);
     }
 
     public Page<Prescription> getPendingPrescriptions(int page) {
-        return prescriptionRepo.findByStatus(Prescription.Status.PENDING,
+        return prescriptionRepo.findByStatus(PENDING,
             PageRequest.of(page, 20, Sort.by("createdAt").descending()));
     }
 
@@ -116,7 +116,7 @@ public class PharmacyService {
         Map<String,Object> s = new LinkedHashMap<>();
         s.put("totalMedicines",    medicineRepo.count());
         s.put("lowStockCount",     medicineRepo.countLowStock());
-        s.put("pendingPrescriptions", prescriptionRepo.countByStatus(Prescription.Status.PENDING));
+        s.put("pendingPrescriptions", prescriptionRepo.countByStatus(PENDING));
         return s;
     }
 }

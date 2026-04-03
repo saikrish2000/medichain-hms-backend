@@ -1,7 +1,6 @@
 package com.hospital.service;
 
 import com.hospital.entity.*;
-import com.hospital.entity.Appointment.AppointmentStatus;
 import com.hospital.exception.BadRequestException;
 import com.hospital.exception.ResourceNotFoundException;
 import com.hospital.repository.*;
@@ -45,7 +44,7 @@ public class AppointmentService {
         appt.setAppointmentTime(slot.getStartTime());
         appt.setReasonForVisit(reason);
         appt.setNotes(notes);
-        appt.setStatus(AppointmentStatus.PENDING);
+        appt.setStatus("PENDING");
         appt.setCreatedAt(LocalDateTime.now());
         appointmentRepo.save(appt);
 
@@ -66,7 +65,7 @@ public class AppointmentService {
     @Transactional
     public void confirmAppointment(Long appointmentId, Long doctorUserId) {
         Appointment appt = getByIdAndValidateDoctor(appointmentId, doctorUserId);
-        appt.setStatus(AppointmentStatus.CONFIRMED);
+        appt.setStatus("CONFIRMED");
         appointmentRepo.save(appt);
         try {
             notificationService.sendAppointmentConfirmationToPatient(
@@ -80,7 +79,7 @@ public class AppointmentService {
     @Transactional
     public void rejectAppointment(Long appointmentId, Long doctorUserId, String reason) {
         Appointment appt = getByIdAndValidateDoctor(appointmentId, doctorUserId);
-        appt.setStatus(AppointmentStatus.REJECTED);
+        appt.setStatus("REJECTED");
         appt.setRejectionReason(reason);
         appointmentRepo.save(appt);
     }
@@ -88,7 +87,7 @@ public class AppointmentService {
     @Transactional
     public void completeAppointment(Long appointmentId, Long doctorUserId) {
         Appointment appt = getByIdAndValidateDoctor(appointmentId, doctorUserId);
-        appt.setStatus(AppointmentStatus.COMPLETED);
+        appt.setStatus("COMPLETED");
         appt.setCompletedAt(LocalDateTime.now());
         appointmentRepo.save(appt);
     }
@@ -96,7 +95,7 @@ public class AppointmentService {
     @Transactional
     public void markNoShow(Long appointmentId, Long doctorUserId) {
         Appointment appt = getByIdAndValidateDoctor(appointmentId, doctorUserId);
-        appt.setStatus(AppointmentStatus.NO_SHOW);
+        appt.setStatus("NO_SHOW");
         appointmentRepo.save(appt);
     }
 
@@ -108,10 +107,10 @@ public class AppointmentService {
             .orElseThrow(() -> new BadRequestException("Patient not found"));
         if (!appt.getPatient().getId().equals(patient.getId()))
             throw new BadRequestException("Not authorised to cancel this appointment");
-        if (appt.getStatus() == AppointmentStatus.COMPLETED ||
-            appt.getStatus() == AppointmentStatus.CANCELLED)
+        if (appt.getStatus().equals("COMPLETED") ||
+            appt.getStatus().equals("CANCELLED"))
             throw new BadRequestException("Cannot cancel this appointment");
-        appt.setStatus(AppointmentStatus.CANCELLED);
+        appt.setStatus("CANCELLED");
         appointmentRepo.save(appt);
         DoctorSlot slot = appt.getSlot();
         if (slot != null) {
@@ -126,7 +125,7 @@ public class AppointmentService {
     }
 
     public Page<Appointment> getDoctorPendingAppointments(Long doctorId, int page) {
-        return appointmentRepo.findByDoctorIdAndStatus(doctorId, AppointmentStatus.PENDING,
+        return appointmentRepo.findByDoctorIdAndStatus(doctorId, "PENDING",
             PageRequest.of(page, 15, Sort.by("appointmentDate")));
     }
 

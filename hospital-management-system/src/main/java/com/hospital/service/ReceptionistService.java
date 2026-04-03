@@ -23,7 +23,7 @@ public class ReceptionistService {
     public Appointment checkIn(Long appointmentId) {
         Appointment appt = appointmentRepo.findById(appointmentId)
             .orElseThrow(() -> new ResourceNotFoundException("Appointment","id",appointmentId));
-        appt.setStatus(Appointment.AppointmentStatus.IN_PROGRESS);
+        appt.setStatus(Appointment."IN_PROGRESS");
         appt.setCheckedInAt(LocalDateTime.now());
         return appointmentRepo.save(appt);
     }
@@ -43,8 +43,8 @@ public class ReceptionistService {
     public Map<String,Object> getDashboardStats() {
         Map<String,Object> s = new LinkedHashMap<>();
         s.put("todayAppointments",    appointmentRepo.countByAppointmentDate(LocalDate.now()));
-        s.put("checkedIn",            appointmentRepo.countByAppointmentDateAndStatus(LocalDate.now(), Appointment.AppointmentStatus.IN_PROGRESS));
-        s.put("pendingToday",         appointmentRepo.countByAppointmentDateAndStatus(LocalDate.now(), Appointment.AppointmentStatus.PENDING));
+        s.put("checkedIn",            appointmentRepo.countByAppointmentDateAndStatus(LocalDate.now(), Appointment."IN_PROGRESS"));
+        s.put("pendingToday",         appointmentRepo.countByAppointmentDateAndStatus(LocalDate.now(), Appointment."PENDING"));
         s.put("upcomingAppointments", getTodayAppointments());
         return s;
     }

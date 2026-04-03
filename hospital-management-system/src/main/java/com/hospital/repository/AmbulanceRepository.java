@@ -8,7 +8,7 @@ import java.util.List;
 
 @Repository
 public interface AmbulanceRepository extends JpaRepository<Ambulance, Long> {
-    List<Ambulance> findByStatus(Ambulance.AmbulanceStatus status);
-    long countByStatus(Ambulance.AmbulanceStatus status);
-    long countByIsActiveTrue();
+    List<Ambulance> findByStatus(String status);
+    List<Ambulance> findByBranchId(Long branchId);
+    List<Ambulance> findByIsActiveTrue();
 }

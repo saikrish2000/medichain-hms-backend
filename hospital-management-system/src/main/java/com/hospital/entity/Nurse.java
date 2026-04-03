@@ -2,21 +2,17 @@ package com.hospital.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "nurses")
+@Entity @Table(name = "nurses")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Nurse {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", unique = true, nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
     @Column(name = "license_number", unique = true, nullable = false, length = 100)
@@ -26,7 +22,7 @@ public class Nurse {
     private String licenseDocumentUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id", nullable = false)
+    @JoinColumn(name = "department_id")
     private Department department;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -36,8 +32,8 @@ public class Nurse {
     @Column(length = 50)
     private String ward;
 
-    @Enumerated(EnumType.STRING)
-    private Shift shift;
+    @Column(length = 20)
+    private String shift;   // MORNING, AFTERNOON, NIGHT, ROTATING
 
     @Column(length = 255)
     private String qualification;
@@ -45,9 +41,8 @@ public class Nurse {
     @Column(name = "experience_years")
     private Integer experienceYears = 0;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "approval_status")
-    private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
+    @Column(name = "approval_status", length = 20)
+    private String approvalStatus = "PENDING";
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approved_by")
@@ -59,14 +54,18 @@ public class Nurse {
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
 
-    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public enum ApprovalStatus { PENDING, APPROVED, REJECTED, SUSPENDED }
-    public enum Shift { MORNING, AFTERNOON, NIGHT, ROTATING }
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt  = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() { updatedAt = LocalDateTime.now(); }
 }

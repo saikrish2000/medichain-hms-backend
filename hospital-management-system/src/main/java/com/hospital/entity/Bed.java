@@ -2,18 +2,13 @@ package com.hospital.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "beds")
+@Entity @Table(name = "beds")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Bed {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "bed_number", nullable = false, length = 20)
@@ -23,19 +18,28 @@ public class Bed {
     @JoinColumn(name = "ward_id")
     private Ward ward;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private BedStatus status = BedStatus.AVAILABLE;
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "current_patient_id")
-    private Patient currentPatient;
+    @JoinColumn(name = "patient_id")
+    private Patient patient;
 
-    @Column(name = "admitted_at")
-    private LocalDateTime admittedAt;
+    @Column(name = "status", length = 20)
+    private String status = "AVAILABLE"; // AVAILABLE, OCCUPIED, MAINTENANCE
 
-    @CreationTimestamp @Column(name = "created_at", updatable = false) private LocalDateTime createdAt;
-    @UpdateTimestamp   @Column(name = "updated_at")                    private LocalDateTime updatedAt;
+    @Column(name = "bed_type", length = 30)
+    private String bedType; // STANDARD, ICU, VENTILATOR
 
-    public enum BedStatus { AVAILABLE, OCCUPIED, RESERVED, MAINTENANCE }
+    @Column(name = "is_active")
+    private Boolean isActive = true;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() { createdAt = LocalDateTime.now(); updatedAt = LocalDateTime.now(); }
+
+    @PreUpdate
+    protected void onUpdate() { updatedAt = LocalDateTime.now(); }
 }

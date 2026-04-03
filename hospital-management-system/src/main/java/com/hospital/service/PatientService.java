@@ -48,7 +48,7 @@ public class PatientService {
         Map<String,Object> stats = new LinkedHashMap<>();
         stats.put("patient", patient);
         stats.put("upcomingAppointments", appointmentRepo.findNextAppointments(pid, PageRequest.of(0,3)));
-        stats.put("pendingBills",        invoiceRepo.countByPatientIdAndStatus(pid, Invoice.PaymentStatus.PENDING));
+        stats.put("pendingBills",        invoiceRepo.countByPatientIdAndStatus(pid, "PENDING"));
         stats.put("totalVisits",         medRecordRepo.countByPatientId(pid));
         stats.put("recentRecords",       medRecordRepo.findByPatientIdOrderByVisitDateDesc(pid, PageRequest.of(0,3)).getContent());
         return stats;

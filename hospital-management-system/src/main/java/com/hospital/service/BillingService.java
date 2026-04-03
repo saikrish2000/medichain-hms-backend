@@ -29,7 +29,7 @@ public class BillingService {
 
         Invoice invoice = new Invoice();
         invoice.setPatient(patient);
-        invoice.setStatus(Invoice.PaymentStatus.PENDING);
+        invoice.setStatus("PENDING");
         invoice.setCreatedAt(LocalDateTime.now());
         if (appointmentId != null)
             appointmentRepo.findById(appointmentId).ifPresent(invoice::setAppointment);
@@ -59,9 +59,9 @@ public class BillingService {
     public Invoice markAsPaid(Long invoiceId, Invoice.PaymentMethod method, String transactionId) {
         Invoice invoice = invoiceRepo.findById(invoiceId)
             .orElseThrow(() -> new ResourceNotFoundException("Invoice","id",invoiceId));
-        if (invoice.getStatus() == Invoice.PaymentStatus.PAID)
+        if (invoice.getStatus().equals("PAID"))
             throw new BadRequestException("Invoice already paid");
-        invoice.setStatus(Invoice.PaymentStatus.PAID);
+        invoice.setStatus("PAID");
         invoice.setPaymentMethod(method);
         invoice.setTransactionId(transactionId);
         invoice.setPaidAt(LocalDateTime.now());
@@ -91,8 +91,8 @@ public class BillingService {
     public Map<String,Object> getDashboardStats() {
         Map<String,Object> stats = new LinkedHashMap<>();
         stats.put("totalRevenue", invoiceRepo.sumPaidAmount().orElse(BigDecimal.ZERO));
-        stats.put("pendingCount", invoiceRepo.countByStatus(Invoice.PaymentStatus.PENDING));
-        stats.put("paidCount",    invoiceRepo.countByStatus(Invoice.PaymentStatus.PAID));
+        stats.put("pendingCount", invoiceRepo.countByStatus("PENDING"));
+        stats.put("paidCount",    invoiceRepo.countByStatus("PAID"));
         return stats;
     }
 }

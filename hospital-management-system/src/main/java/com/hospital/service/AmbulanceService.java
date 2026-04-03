@@ -1,8 +1,6 @@
 package com.hospital.service;
 
 import com.hospital.entity.*;
-import com.hospital.entity.Ambulance.AmbulanceStatus;
-import com.hospital.entity.AmbulanceCall.CallStatus;
 import com.hospital.exception.ResourceNotFoundException;
 import com.hospital.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +35,7 @@ public class AmbulanceService {
     @Transactional
     public AmbulanceCall requestAmbulance(String callerName, String callerPhone,
                                           String pickupAddress, String emergencyType) {
-        List<Ambulance> available = ambulanceRepo.findByStatus(AmbulanceStatus.AVAILABLE);
+        List<Ambulance> available = ambulanceRepo.findByStatus("AVAILABLE");
         AmbulanceCall call = new AmbulanceCall();
         call.setCallerName(callerName);
         call.setCallerPhone(callerPhone);
@@ -50,7 +48,7 @@ public class AmbulanceService {
             amb.setStatus(AmbulanceStatus.DISPATCHED);
             ambulanceRepo.save(amb);
             call.setAmbulance(amb);
-            call.setStatus(CallStatus.DISPATCHED);
+            call.setStatus("DISPATCHED");
             call.setDispatchedAt(LocalDateTime.now());
         }
         return callRepo.save(call);
@@ -62,10 +60,10 @@ public class AmbulanceService {
             .orElseThrow(() -> new ResourceNotFoundException("AmbulanceCall","id",callId));
         call.setStatus(newStatus);
         if (newStatus == CallStatus.AT_SCENE)  call.setArrivedAt(LocalDateTime.now());
-        if (newStatus == CallStatus.COMPLETED) {
+        if (newStatus == "COMPLETED") {
             call.setCompletedAt(LocalDateTime.now());
             if (call.getAmbulance() != null) {
-                call.getAmbulance().setStatus(AmbulanceStatus.AVAILABLE);
+                call.getAmbulance().setStatus("AVAILABLE");
                 ambulanceRepo.save(call.getAmbulance());
             }
         }
@@ -79,9 +77,9 @@ public class AmbulanceService {
     public Map<String,Object> getDashboardStats() {
         Map<String,Object> stats = new LinkedHashMap<>();
         stats.put("totalAmbulances", ambulanceRepo.count());
-        stats.put("available",       ambulanceRepo.countByStatus(AmbulanceStatus.AVAILABLE));
+        stats.put("available",       ambulanceRepo.countByStatus("AVAILABLE"));
         stats.put("dispatched",      ambulanceRepo.countByStatus(AmbulanceStatus.DISPATCHED));
-        stats.put("activeCalls",     callRepo.countByStatus(CallStatus.DISPATCHED) +
+        stats.put("activeCalls",     callRepo.countByStatus("DISPATCHED") +
                                      callRepo.countByStatus(CallStatus.ON_ROUTE));
         stats.put("recentCalls",     callRepo.findAllByOrderByRequestTimeDesc(PageRequest.of(0,5)).getContent());
         return stats;

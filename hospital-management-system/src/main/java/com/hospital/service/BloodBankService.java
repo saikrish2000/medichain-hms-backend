@@ -25,7 +25,7 @@ public class BloodBankService {
     public Map<String,Object> getDashboardStats() {
         Map<String,Object> s = new LinkedHashMap<>();
         s.put("totalUnits",     inventoryRepo.sumTotalUnits().orElse(0L));
-        s.put("pendingRequests",requestRepo.countByStatus(BloodRequest.RequestStatus.PENDING));
+        s.put("pendingRequests",requestRepo.countByStatus(BloodRequest.Request"PENDING"));
         s.put("inventory",      inventoryRepo.findAll());
         return s;
     }
@@ -69,7 +69,7 @@ public class BloodBankService {
         BloodRequest req = new BloodRequest();
         req.setBank(bank); req.setRequestedBy(user); req.setBloodGroup(group);
         req.setUnitsRequested(units); req.setUrgencyLevel(urgency); req.setReason(reason);
-        req.setStatus(BloodRequest.RequestStatus.PENDING);
+        req.setStatus(BloodRequest.Request"PENDING");
         req.setCreatedAt(LocalDateTime.now());
         return requestRepo.save(req);
     }
@@ -111,7 +111,7 @@ public class BloodBankService {
             .orElseThrow(() -> new ResourceNotFoundException("User","id",donorUserId));
         BloodDonation d = new BloodDonation();
         d.setBank(bank); d.setDonor(donor); d.setBloodGroup(group);
-        d.setUnitsCollected(units); d.setStatus(BloodDonation.DonationStatus.PENDING);
+        d.setUnitsCollected(units); d.setStatus(BloodDonation.Donation"PENDING");
         d.setDonationDate(java.time.LocalDate.now());
         return donationRepo.save(d);
     }

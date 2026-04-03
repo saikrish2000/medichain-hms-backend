@@ -3,11 +3,12 @@ package com.hospital.repository;
 import com.hospital.entity.Department;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+
 import java.util.List;
 
 @Repository
 public interface DepartmentRepository extends JpaRepository<Department, Long> {
-    List<Department> findByBranchIdAndIsActive(Long branchId, Boolean isActive);
-    List<Department> findByIsActive(Boolean isActive);
-    long countByIsActive(Boolean isActive);
+    List<Department> findByBranchId(Long branchId);
+    List<Department> findByIsActiveTrue();
+    List<Department> findByBranchIdAndIsActiveTrue(Long branchId);
 }

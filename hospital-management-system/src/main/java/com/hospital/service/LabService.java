@@ -38,7 +38,7 @@ public class LabService {
         order.setPatient(patient);
         order.setDoctor(doctor);
         order.setClinicalNotes(clinicalNotes);
-        order.setStatus(LabOrder.OrderStatus.ORDERED);
+        order.setStatus("ORDERED");
         order.setCreatedAt(LocalDateTime.now());
         if (testIds != null) order.setTests(testRepo.findAllById(testIds));
         return orderRepo.save(order);
@@ -48,7 +48,7 @@ public class LabService {
     public LabOrder collectSample(Long orderId, UserPrincipal technician) {
         LabOrder order = orderRepo.findById(orderId)
             .orElseThrow(() -> new ResourceNotFoundException("LabOrder","id",orderId));
-        order.setStatus(LabOrder.OrderStatus.SAMPLE_COLLECTED);
+        order.setStatus("SAMPLE_COLLECTED");
         order.setSampleCollectedAt(LocalDateTime.now());
         userRepo.findById(technician.getId()).ifPresent(order::setCollectedBy);
         return orderRepo.save(order);
@@ -72,7 +72,7 @@ public class LabService {
         }
         resultRepo.saveAll(results);
         order.setResults(results);
-        order.setStatus(LabOrder.OrderStatus.COMPLETED);
+        order.setStatus("COMPLETED");
         order.setResultNotes(notes);
         order.setCompletedAt(LocalDateTime.now());
         return orderRepo.save(order);
@@ -94,7 +94,7 @@ public class LabService {
     public Map<String,Object> getDashboardStats() {
         Map<String,Object> s = new LinkedHashMap<>();
         s.put("totalOrders",    orderRepo.count());
-        s.put("pendingOrders",  orderRepo.countByStatus(LabOrder.OrderStatus.ORDERED));
+        s.put("pendingOrders",  orderRepo.countByStatus("ORDERED"));
         s.put("completedToday", 0); // simplified
         return s;
     }

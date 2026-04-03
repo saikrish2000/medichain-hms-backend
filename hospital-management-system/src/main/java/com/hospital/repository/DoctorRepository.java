@@ -15,15 +15,19 @@ import java.util.Optional;
 public interface DoctorRepository extends JpaRepository<Doctor, Long> {
 
     Optional<Doctor> findByUserId(Long userId);
+    Optional<Doctor> findByLicenseNumber(String licenseNumber);
 
     long countByApprovalStatus(String status);
-
     List<Doctor> findByApprovalStatus(String status);
-
     Page<Doctor> findByApprovalStatus(String status, Pageable pageable);
 
     @Query("SELECT d FROM Doctor d WHERE d.specialization.id = :specId AND d.approvalStatus = 'APPROVED'")
     List<Doctor> findApprovedBySpecializationId(@Param("specId") Long specId);
+
+    @Query("SELECT d FROM Doctor d WHERE d.specialization.id = :specId AND d.approvalStatus = 'APPROVED' AND d.branch.id = :branchId")
+    List<Doctor> findApprovedBySpecializationIdAndBranchId(@Param("specId") Long specId, @Param("branchId") Long branchId);
+
+    List<Doctor> findBySpecializationIdAndApprovalStatus(Long specId, String approvalStatus);
 
     @Query("SELECT d FROM Doctor d WHERE d.approvalStatus = 'APPROVED' AND d.isAvailable = true")
     List<Doctor> findAllApprovedAndAvailable();

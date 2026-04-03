@@ -15,15 +15,17 @@ import java.util.Optional;
 public interface PatientRepository extends JpaRepository<Patient, Long> {
 
     Optional<Patient> findByUserId(Long userId);
+    Optional<Patient> findByPatientIdNumber(String patientIdNumber);
 
-    @Query("SELECT p FROM Patient p WHERE LOWER(p.user.firstName) LIKE LOWER(CONCAT('%',:q,'%')) " +
-           "OR LOWER(p.user.lastName) LIKE LOWER(CONCAT('%',:q,'%')) " +
-           "OR LOWER(p.user.email) LIKE LOWER(CONCAT('%',:q,'%')) " +
-           "OR p.user.phone LIKE CONCAT('%',:q,'%')")
+    @Query("SELECT p FROM Patient p WHERE " +
+           "LOWER(p.user.firstName) LIKE LOWER(CONCAT('%',:q,'%')) OR " +
+           "LOWER(p.user.lastName)  LIKE LOWER(CONCAT('%',:q,'%')) OR " +
+           "LOWER(p.user.email)     LIKE LOWER(CONCAT('%',:q,'%')) OR " +
+           "p.user.phone            LIKE CONCAT('%',:q,'%')")
     Page<Patient> searchByKeyword(@Param("q") String q, Pageable pageable);
 
     long countByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
 
-    @Query("SELECT p FROM Patient p JOIN Appointment a ON a.patient.id = p.id WHERE a.doctor.id = :doctorId")
+    @Query("SELECT DISTINCT p FROM Patient p JOIN Appointment a ON a.patient.id = p.id WHERE a.doctor.id = :doctorId")
     Page<Patient> findPatientsByDoctorId(@Param("doctorId") Long doctorId, Pageable pageable);
 }
