@@ -53,6 +53,9 @@ public class AmbulanceCall {
     @Column(name = "dispatched_at")
     private LocalDateTime dispatchedAt;
 
+    @Column(name = "arrived_at")
+    private LocalDateTime arrivedAt;
+
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 

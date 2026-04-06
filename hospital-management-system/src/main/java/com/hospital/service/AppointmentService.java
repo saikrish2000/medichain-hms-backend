@@ -56,7 +56,8 @@ public class AppointmentService {
                 slot.getDoctor().getUser().getEmail(),
                 slot.getDoctor().getUser().getFullName(),
                 patient.getUser().getFullName(),
-                appt.getAppointmentDate().toString());
+                appt.getAppointmentDate(),
+                appt.getAppointmentTime());
         } catch (Exception ignored) {}
 
         return appt;
@@ -71,8 +72,10 @@ public class AppointmentService {
             notificationService.sendAppointmentConfirmationToPatient(
                 appt.getPatient().getUser().getEmail(),
                 appt.getPatient().getUser().getFullName(),
+                appt.getId() != null ? "#" + appt.getId() : "N/A",
                 appt.getDoctor().getUser().getFullName(),
-                appt.getAppointmentDate().toString());
+                appt.getAppointmentDate(),
+                appt.getAppointmentTime());
         } catch (Exception ignored) {}
     }
 

@@ -67,8 +67,8 @@ public class BloodBankService {
         User user = userRepo.findById(userId)
             .orElseThrow(() -> new ResourceNotFoundException("User","id",userId));
         BloodRequest req = new BloodRequest();
-        req.setBank(bank); /* blood request initiated by system */
-        // user context available via auth; req.setBloodGroup(group);
+        req.setBank(bank);
+        req.setBloodGroup(group);
         req.setUnitsRequired(units); req.setUrgency(urgency); req.setNotes(reason);
         req.setStatus("PENDING");
         req.setCreatedAt(LocalDateTime.now());
@@ -88,8 +88,6 @@ public class BloodBankService {
         inventoryRepo.save(inv);
         req.setStatus("APPROVED");
         /* unitsApproved stored in notes */;
-        userRepo.findById(reviewerUserId).ifPresent(req::setReviewedBy);
-        /* req.setReviewedAt */(LocalDateTime.now());
         requestRepo.save(req);
     }
 
@@ -99,8 +97,6 @@ public class BloodBankService {
             .orElseThrow(() -> new ResourceNotFoundException("BloodRequest","id",requestId));
         req.setStatus("REJECTED");
         req.setNotes(reason);
-        userRepo.findById(reviewerUserId).ifPresent(req::setReviewedBy);
-        /* req.setReviewedAt */(LocalDateTime.now());
         requestRepo.save(req);
     }
 

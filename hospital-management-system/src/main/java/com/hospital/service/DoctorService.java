@@ -50,7 +50,7 @@ public class DoctorService {
     public List<Doctor> getAvailableDoctors(Long specializationId, Long branchId) {
         if (specializationId != null && branchId != null)
             return doctorRepo.findApprovedBySpecializationIdAndBranchId(
-                specializationId, "APPROVED", branchId);
+                specializationId, branchId);
         if (specializationId != null)
             return doctorRepo.findBySpecializationIdAndApprovalStatus(specializationId, "APPROVED");
         return doctorRepo.findByApprovalStatus("APPROVED");

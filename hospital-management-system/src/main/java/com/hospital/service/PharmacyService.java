@@ -108,7 +108,7 @@ public class PharmacyService {
     }
 
     public Page<Prescription> getPendingPrescriptions(int page) {
-        return prescriptionRepo.findByStatus(PENDING,
+        return prescriptionRepo.findByStatus("PENDING",
             PageRequest.of(page, 20, Sort.by("createdAt").descending()));
     }
 
@@ -116,7 +116,7 @@ public class PharmacyService {
         Map<String,Object> s = new LinkedHashMap<>();
         s.put("totalMedicines",    medicineRepo.count());
         s.put("lowStockCount",     medicineRepo.findByQuantityInStockLessThanEqualAndIsActiveTrue(10).size());
-        s.put("pendingPrescriptions", prescriptionRepo.countByStatus(PENDING));
+        s.put("pendingPrescriptions", prescriptionRepo.countByStatus("PENDING"));
         return s;
     }
 }
