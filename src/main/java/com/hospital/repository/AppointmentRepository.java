@@ -45,4 +45,5 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     // Receptionist
     Page<Appointment> findByAppointmentDate(LocalDate date, Pageable pageable);
     List<Appointment> findByAppointmentDateOrderByAppointmentTimeAsc(LocalDate date);
+    List<Appointment> findByAppointmentDateAndStatus(LocalDate date, String status);
 }
