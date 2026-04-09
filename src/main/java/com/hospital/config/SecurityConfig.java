@@ -29,15 +29,14 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtFilter;
     private final UserDetailsService userDetailsService;
 
-    /** Swagger / SpringDoc paths that must be publicly accessible */
     private static final String[] SWAGGER_PATHS = {
-        "/swagger-ui.html",
-        "/swagger-ui/**",
-        "/v3/api-docs",
-        "/v3/api-docs/**",
-        "/swagger-resources",
-        "/swagger-resources/**",
-        "/webjars/**"
+        "/swagger-ui.html", "/swagger-ui/**",
+        "/v3/api-docs", "/v3/api-docs/**",
+        "/swagger-resources", "/swagger-resources/**", "/webjars/**"
+    };
+
+    private static final String[] WEBSOCKET_PATHS = {
+        "/ws/**", "/ws/info/**", "/ws/info"
     };
 
     @Bean
@@ -47,10 +46,9 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
 
-                // ── Swagger / OpenAPI (always public) ─────────────────────
+                // ── Public ────────────────────────────────────────────────
                 .requestMatchers(SWAGGER_PATHS).permitAll()
-
-                // ── Auth (public) ─────────────────────────────────────────
+                .requestMatchers(WEBSOCKET_PATHS).permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
@@ -66,6 +64,7 @@ public class SecurityConfig {
 
                 // ── Patient ───────────────────────────────────────────────
                 .requestMatchers("/api/patient/**").hasRole("PATIENT")
+                .requestMatchers("/api/billing/my-bills").hasRole("PATIENT")
 
                 // ── Pharmacy ──────────────────────────────────────────────
                 .requestMatchers("/api/pharmacy/**").hasAnyRole("PHARMACIST", "ADMIN")
@@ -76,20 +75,23 @@ public class SecurityConfig {
                 // ── Blood Bank ────────────────────────────────────────────
                 .requestMatchers("/api/blood-bank/**").hasAnyRole("BLOOD_BANK_MANAGER", "ADMIN")
 
-                // ── Ambulance ─────────────────────────────────────────────
+                // ── Ambulance + GPS ───────────────────────────────────────
                 .requestMatchers("/api/ambulance/**").hasAnyRole("AMBULANCE_OPERATOR", "ADMIN")
+                .requestMatchers("/api/ambulance/locations/all").hasAnyRole("ADMIN", "AMBULANCE_OPERATOR")
+
+                // ── Payment ───────────────────────────────────────────────
+                .requestMatchers("/api/payment/**").authenticated()
 
                 // ── Billing ───────────────────────────────────────────────
-                .requestMatchers("/api/billing/my-bills").hasRole("PATIENT")
-                .requestMatchers("/api/billing/**").hasAnyRole("ADMIN", "RECEPTIONIST")
+                .requestMatchers("/api/billing/**").hasAnyRole("ADMIN", "RECEPTIONIST", "PATIENT")
+
+                // ── Organ Donor ───────────────────────────────────────────
+                .requestMatchers("/api/organ-donor/**").authenticated()
 
                 // ── Receptionist ──────────────────────────────────────────
                 .requestMatchers("/api/receptionist/**").hasAnyRole("RECEPTIONIST", "ADMIN")
 
-                // ── Appointments (shared booking flow) ────────────────────
-                .requestMatchers("/api/appointments/specializations",
-                                 "/api/appointments/doctors",
-                                 "/api/appointments/slots").authenticated()
+                // ── Appointments ──────────────────────────────────────────
                 .requestMatchers("/api/appointments/**").authenticated()
 
                 .anyRequest().authenticated()
