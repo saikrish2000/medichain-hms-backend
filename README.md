@@ -1,5 +1,12 @@
 # MediChain HMS — Backend API
 
+![Backend CI](https://github.com/saikrish2000/medichain-hms-backend/actions/workflows/ci.yml/badge.svg)
+![Java](https://img.shields.io/badge/Java-17-blue?logo=openjdk)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.3-brightgreen?logo=springboot)
+![MySQL](https://img.shields.io/badge/MySQL-8.0-orange?logo=mysql)
+![Swagger](https://img.shields.io/badge/Swagger-OpenAPI%203-85EA2D?logo=swagger)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 Full-scale Hospital Chain Management System built with Spring Boot 3 REST API + JWT Authentication.
 
 ## Tech Stack
@@ -68,3 +75,6 @@ docker-compose up -d
 
 ## Branches
 `main` (prod) · `develop` (active dev) · `feature/*` · `hotfix/*`
+
+## Frontend Repo
+https://github.com/saikrish2000/medichain-hms-frontend
