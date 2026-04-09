@@ -10,4 +10,5 @@ import org.springframework.stereotype.Repository;
 public interface OrganRequestRepository extends JpaRepository<OrganRequest, Long> {
     Page<OrganRequest> findByPatientId(Long patientId, Pageable pageable);
     Page<OrganRequest> findByStatus(String status, Pageable pageable);
+    long countByStatus(String status);
 }
