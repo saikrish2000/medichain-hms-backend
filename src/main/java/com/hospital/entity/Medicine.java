@@ -27,23 +27,14 @@ public class Medicine {
     @Column(name = "unit_price", precision = 10, scale = 2)
     private BigDecimal unitPrice = BigDecimal.ZERO;
 
-    // legacy
     @Column(name = "price", precision = 10, scale = 2)
     private BigDecimal price;
 
     @Column(name = "quantity_in_stock")
     private Integer quantityInStock = 0;
 
-    // legacy alias
-    @Column(name = "stock_quantity", insertable = false, updatable = false)
-    private Integer stockQuantity;
-
     @Column(name = "min_stock_level")
     private Integer minStockLevel = 10;
-
-    // legacy
-    @Column(name = "reorder_level", insertable = false, updatable = false)
-    private Integer reorderLevel;
 
     @Column(name = "expiry_date")
     private LocalDate expiryDate;
@@ -57,10 +48,6 @@ public class Medicine {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "branch_id")
-    private HospitalBranch branch;
-
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -70,10 +57,18 @@ public class Medicine {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
-        updatedAt  = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
         if (price == null && unitPrice != null) price = unitPrice;
+        if (unitPrice == null && price != null) unitPrice = price;
     }
 
     @PreUpdate
-    protected void onUpdate() { updatedAt = LocalDateTime.now(); }
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+        if (price == null && unitPrice != null) price = unitPrice;
+    }
+
+    /** Convenience alias */
+    public Integer getStockQuantity() { return quantityInStock; }
+    public Integer getReorderLevel()  { return minStockLevel; }
 }
