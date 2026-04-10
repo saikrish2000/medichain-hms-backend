@@ -9,185 +9,88 @@ import com.itextpdf.text.pdf.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
 import java.io.ByteArrayOutputStream;
 import java.time.format.DateTimeFormatter;
 
-@Service
-@RequiredArgsConstructor
-@Slf4j
+@Service @RequiredArgsConstructor @Slf4j
 public class InvoicePdfService {
 
     private final InvoiceRepository invoiceRepo;
 
-    private static final BaseColor BRAND_PURPLE = new BaseColor(108, 99, 255);
-    private static final BaseColor LIGHT_GRAY   = new BaseColor(248, 249, 255);
-    private static final BaseColor DARK_TEXT    = new BaseColor(26, 26, 46);
-    private static final Font TITLE_FONT   = new Font(Font.FontFamily.HELVETICA, 22, Font.BOLD, BaseColor.WHITE);
-    private static final Font HEADING_FONT = new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD, DARK_TEXT);
-    private static final Font NORMAL_FONT  = new Font(Font.FontFamily.HELVETICA, 10, Font.NORMAL, DARK_TEXT);
-    private static final Font SMALL_FONT   = new Font(Font.FontFamily.HELVETICA, 9, Font.NORMAL, BaseColor.GRAY);
-    private static final Font TOTAL_FONT   = new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD, BRAND_PURPLE);
+    private static final BaseColor PURPLE = new BaseColor(108, 99, 255);
+    private static final BaseColor LGRAY  = new BaseColor(248, 249, 255);
+    private static final Font TITLE  = new Font(Font.FontFamily.HELVETICA, 22, Font.BOLD,  BaseColor.WHITE);
+    private static final Font HEAD   = new Font(Font.FontFamily.HELVETICA, 11, Font.BOLD,  new BaseColor(26,26,46));
+    private static final Font NORMAL = new Font(Font.FontFamily.HELVETICA, 10, Font.NORMAL, new BaseColor(26,26,46));
+    private static final Font SMALL  = new Font(Font.FontFamily.HELVETICA,  9, Font.NORMAL, BaseColor.GRAY);
+    private static final Font TOTAL  = new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD,  new BaseColor(108,99,255));
 
     public byte[] generateInvoicePdf(Long invoiceId) {
-        Invoice invoice = invoiceRepo.findById(invoiceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Invoice", "id", invoiceId));
-
+        Invoice inv = invoiceRepo.findById(invoiceId)
+            .orElseThrow(() -> new ResourceNotFoundException("Invoice","id",invoiceId));
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document doc = new Document(PageSize.A4, 40, 40, 40, 40);
             PdfWriter.getInstance(doc, out);
             doc.open();
-
-            // ── Header Banner ──
-            PdfPTable header = new PdfPTable(1);
-            header.setWidthPercentage(100);
-            PdfPCell headerCell = new PdfPCell();
-            headerCell.setBackgroundColor(BRAND_PURPLE);
-            headerCell.setPadding(20);
-            headerCell.setBorder(Rectangle.NO_BORDER);
-            Paragraph title = new Paragraph("🏥  MediChain HMS", TITLE_FONT);
-            title.setAlignment(Element.ALIGN_CENTER);
-            headerCell.addElement(title);
-            Paragraph subtitle = new Paragraph("INVOICE", new Font(Font.FontFamily.HELVETICA, 14, Font.NORMAL, BaseColor.WHITE));
-            subtitle.setAlignment(Element.ALIGN_CENTER);
-            headerCell.addElement(subtitle);
-            header.addCell(headerCell);
-            doc.add(header);
-            doc.add(Chunk.NEWLINE);
-
-            // ── Invoice Meta ──
-            PdfPTable meta = new PdfPTable(2);
-            meta.setWidthPercentage(100);
-            meta.setSpacingBefore(10);
-
-            addMetaRow(meta, "Invoice Number:", invoice.getInvoiceNumber() != null ? invoice.getInvoiceNumber() : "INV-" + invoice.getId());
-            addMetaRow(meta, "Date:", invoice.getCreatedAt() != null
-                    ? invoice.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")) : "-");
-            addMetaRow(meta, "Status:", invoice.getStatus());
-            if (invoice.getPaidAt() != null)
-                addMetaRow(meta, "Paid On:", invoice.getPaidAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")));
-            if (invoice.getPaymentMethod() != null)
-                addMetaRow(meta, "Payment Method:", invoice.getPaymentMethod());
-            if (invoice.getTransactionId() != null)
-                addMetaRow(meta, "Transaction ID:", invoice.getTransactionId());
-
-            doc.add(meta);
-            doc.add(Chunk.NEWLINE);
-
-            // ── Patient Info ──
-            if (invoice.getPatient() != null && invoice.getPatient().getUser() != null) {
-                PdfPTable patientTable = new PdfPTable(1);
-                patientTable.setWidthPercentage(100);
-                PdfPCell patCell = new PdfPCell();
-                patCell.setBackgroundColor(LIGHT_GRAY);
-                patCell.setPadding(12);
-                patCell.setBorderColor(new BaseColor(200, 210, 255));
-                Paragraph patHeading = new Paragraph("Patient Details", HEADING_FONT);
-                patCell.addElement(patHeading);
-                var user = invoice.getPatient().getUser();
-                patCell.addElement(new Paragraph("Name: " + user.getFirstName() + " " + user.getLastName(), NORMAL_FONT));
-                patCell.addElement(new Paragraph("Email: " + user.getEmail(), NORMAL_FONT));
-                if (user.getPhone() != null)
-                    patCell.addElement(new Paragraph("Phone: " + user.getPhone(), NORMAL_FONT));
-                patCell.addElement(new Paragraph("Patient ID: " + invoice.getPatient().getPatientIdNumber(), NORMAL_FONT));
-                patientTable.addCell(patCell);
-                doc.add(patientTable);
-                doc.add(Chunk.NEWLINE);
+            // Header
+            PdfPTable hdr = new PdfPTable(1); hdr.setWidthPercentage(100);
+            PdfPCell hc = new PdfPCell(); hc.setBackgroundColor(PURPLE); hc.setPadding(20); hc.setBorder(0);
+            Paragraph t = new Paragraph("🏥  MediChain HMS — INVOICE", TITLE); t.setAlignment(Element.ALIGN_CENTER);
+            hc.addElement(t); hdr.addCell(hc); doc.add(hdr); doc.add(Chunk.NEWLINE);
+            // Meta
+            PdfPTable meta = new PdfPTable(2); meta.setWidthPercentage(100);
+            addRow(meta,"Invoice #:", inv.getInvoiceNumber() != null ? inv.getInvoiceNumber() : "INV-"+inv.getId());
+            if (inv.getCreatedAt() != null) addRow(meta,"Date:", inv.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")));
+            addRow(meta,"Status:", inv.getStatus());
+            if (inv.getPaymentMethod() != null) addRow(meta,"Payment:", inv.getPaymentMethod());
+            if (inv.getTransactionId() != null) addRow(meta,"Txn ID:", inv.getTransactionId());
+            doc.add(meta); doc.add(Chunk.NEWLINE);
+            // Patient
+            if (inv.getPatient() != null && inv.getPatient().getUser() != null) {
+                var u = inv.getPatient().getUser();
+                PdfPTable pt = new PdfPTable(1); pt.setWidthPercentage(100);
+                PdfPCell pc = new PdfPCell(); pc.setBackgroundColor(LGRAY); pc.setPadding(12);
+                pc.addElement(new Paragraph("Patient: " + u.getFirstName()+" "+u.getLastName(), HEAD));
+                pc.addElement(new Paragraph("Email: " + u.getEmail(), NORMAL));
+                if (u.getPhone() != null) pc.addElement(new Paragraph("Phone: "+u.getPhone(), NORMAL));
+                pt.addCell(pc); doc.add(pt); doc.add(Chunk.NEWLINE);
             }
-
-            // ── Items Table ──
-            PdfPTable itemsTable = new PdfPTable(new float[]{4, 1, 2, 2});
-            itemsTable.setWidthPercentage(100);
-            itemsTable.setSpacingBefore(5);
-
-            // Table Header
-            String[] headers = {"Description", "Qty", "Unit Price", "Total"};
-            for (String h : headers) {
-                PdfPCell cell = new PdfPCell(new Phrase(h, new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE)));
-                cell.setBackgroundColor(BRAND_PURPLE);
-                cell.setPadding(8);
-                cell.setBorder(Rectangle.NO_BORDER);
-                itemsTable.addCell(cell);
-            }
-
             // Items
-            boolean alt = false;
-            if (invoice.getItems() != null) {
-                for (InvoiceItem item : invoice.getItems()) {
-                    BaseColor bg = alt ? LIGHT_GRAY : BaseColor.WHITE;
-                    addItemRow(itemsTable, item.getDescription(), bg,
-                            String.valueOf(item.getQuantity()),
-                            "₹" + item.getUnitPrice(),
-                            "₹" + item.getTotalPrice());
-                    alt = !alt;
-                }
+            PdfPTable tbl = new PdfPTable(new float[]{4,1,2,2}); tbl.setWidthPercentage(100);
+            for (String h : new String[]{"Description","Qty","Unit Price","Total"}) {
+                PdfPCell c = new PdfPCell(new Phrase(h, new Font(Font.FontFamily.HELVETICA,10,Font.BOLD,BaseColor.WHITE)));
+                c.setBackgroundColor(PURPLE); c.setPadding(8); c.setBorder(0); tbl.addCell(c);
             }
-            doc.add(itemsTable);
-            doc.add(Chunk.NEWLINE);
-
-            // ── Totals ──
-            PdfPTable totals = new PdfPTable(2);
-            totals.setWidthPercentage(50);
-            totals.setHorizontalAlignment(Element.ALIGN_RIGHT);
-
-            if (invoice.getDiscountAmount() != null && invoice.getDiscountAmount().doubleValue() > 0)
-                addTotalRow(totals, "Discount:", "- ₹" + invoice.getDiscountAmount(), NORMAL_FONT);
-            if (invoice.getTaxAmount() != null && invoice.getTaxAmount().doubleValue() > 0)
-                addTotalRow(totals, "Tax:", "+ ₹" + invoice.getTaxAmount(), NORMAL_FONT);
-            addTotalRow(totals, "TOTAL AMOUNT:", "₹" + invoice.getTotalAmount(), TOTAL_FONT);
-            if ("PAID".equals(invoice.getStatus()))
-                addTotalRow(totals, "Amount Paid:", "₹" + invoice.getAmountPaid(), NORMAL_FONT);
-
-            doc.add(totals);
-            doc.add(Chunk.NEWLINE);
-
-            // ── Footer ──
-            Paragraph footer = new Paragraph("Thank you for choosing MediChain HMS.\nFor queries: support@medichain.com", SMALL_FONT);
-            footer.setAlignment(Element.ALIGN_CENTER);
-            doc.add(footer);
-
+            boolean alt = false;
+            if (inv.getItems() != null) for (InvoiceItem it : inv.getItems()) {
+                BaseColor bg = alt ? LGRAY : BaseColor.WHITE;
+                for (String v : new String[]{it.getDescription(), String.valueOf(it.getQuantity()), "₹"+it.getUnitPrice(), "₹"+it.getTotalPrice()}) {
+                    PdfPCell c = new PdfPCell(new Phrase(v != null ? v : "-", NORMAL));
+                    c.setBackgroundColor(bg); c.setPadding(7); c.setBorder(Rectangle.BOTTOM); tbl.addCell(c);
+                }
+                alt = !alt;
+            }
+            doc.add(tbl); doc.add(Chunk.NEWLINE);
+            // Total
+            PdfPTable tots = new PdfPTable(2); tots.setWidthPercentage(45); tots.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            addTotalRow(tots,"TOTAL:", "₹" + inv.getTotalAmount(), TOTAL);
+            doc.add(tots); doc.add(Chunk.NEWLINE);
+            Paragraph foot = new Paragraph("Thank you for choosing MediChain HMS | support@medichain.com", SMALL);
+            foot.setAlignment(Element.ALIGN_CENTER); doc.add(foot);
             doc.close();
             return out.toByteArray();
         } catch (Exception e) {
-            log.error("PDF generation failed: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to generate invoice PDF", e);
+            log.error("PDF gen failed: {}", e.getMessage(), e);
+            throw new RuntimeException("PDF generation failed", e);
         }
     }
 
-    private void addMetaRow(PdfPTable table, String label, String value) {
-        PdfPCell l = new PdfPCell(new Phrase(label, HEADING_FONT));
-        l.setBorder(Rectangle.BOTTOM);
-        l.setBorderColor(new BaseColor(230, 230, 240));
-        l.setPadding(6);
-        table.addCell(l);
-        PdfPCell v = new PdfPCell(new Phrase(value != null ? value : "-", NORMAL_FONT));
-        v.setBorder(Rectangle.BOTTOM);
-        v.setBorderColor(new BaseColor(230, 230, 240));
-        v.setPadding(6);
-        table.addCell(v);
+    private void addRow(PdfPTable t, String l, String v) {
+        PdfPCell lc = new PdfPCell(new Phrase(l, HEAD)); lc.setBorder(Rectangle.BOTTOM); lc.setPadding(6); t.addCell(lc);
+        PdfPCell vc = new PdfPCell(new Phrase(v != null?v:"-", NORMAL)); vc.setBorder(Rectangle.BOTTOM); vc.setPadding(6); t.addCell(vc);
     }
-
-    private void addItemRow(PdfPTable table, String desc, BaseColor bg,
-                             String qty, String unit, String total) {
-        for (String val : new String[]{desc, qty, unit, total}) {
-            PdfPCell c = new PdfPCell(new Phrase(val != null ? val : "-", NORMAL_FONT));
-            c.setBackgroundColor(bg);
-            c.setPadding(7);
-            c.setBorder(Rectangle.BOTTOM);
-            c.setBorderColor(new BaseColor(220, 225, 245));
-            table.addCell(c);
-        }
-    }
-
-    private void addTotalRow(PdfPTable table, String label, String value, Font font) {
-        PdfPCell l = new PdfPCell(new Phrase(label, HEADING_FONT));
-        l.setBorder(Rectangle.NO_BORDER);
-        l.setPadding(5);
-        table.addCell(l);
-        PdfPCell v = new PdfPCell(new Phrase(value, font));
-        v.setBorder(Rectangle.NO_BORDER);
-        v.setPadding(5);
-        v.setHorizontalAlignment(Element.ALIGN_RIGHT);
-        table.addCell(v);
+    private void addTotalRow(PdfPTable t, String l, String v, Font f) {
+        PdfPCell lc = new PdfPCell(new Phrase(l, HEAD)); lc.setBorder(0); lc.setPadding(5); t.addCell(lc);
+        PdfPCell vc = new PdfPCell(new Phrase(v, f)); vc.setBorder(0); vc.setPadding(5); vc.setHorizontalAlignment(Element.ALIGN_RIGHT); t.addCell(vc);
     }
 }
