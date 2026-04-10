@@ -13,14 +13,9 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class TwilioService {
 
-    @Value("${twilio.account.sid:}")
-    private String accountSid;
-
-    @Value("${twilio.auth.token:}")
-    private String authToken;
-
-    @Value("${twilio.phone.number:}")
-    private String fromNumber;
+    @Value("${twilio.account.sid:}") private String accountSid;
+    @Value("${twilio.auth.token:}")  private String authToken;
+    @Value("${twilio.phone.number:}") private String fromNumber;
 
     private boolean enabled = false;
 
@@ -30,64 +25,33 @@ public class TwilioService {
                 && authToken != null && !authToken.isBlank()) {
             Twilio.init(accountSid, authToken);
             enabled = true;
-            log.info("Twilio SMS service initialized ✅");
+            log.info("Twilio SMS initialized ✅");
         } else {
-            log.warn("Twilio credentials not configured — SMS will be logged only");
+            log.info("Twilio not configured — SMS will be logged only (set TWILIO_ACCOUNT_SID etc.)");
         }
     }
 
     @Async
     public void sendSms(String toPhone, String messageBody) {
-        if (!enabled) {
-            log.info("[SMS STUB] To: {} | {}", toPhone, messageBody);
-            return;
-        }
+        if (!enabled) { log.info("[SMS STUB] To: {} | {}", toPhone, messageBody); return; }
         try {
-            // Ensure E.164 format
             String to = toPhone.startsWith("+") ? toPhone : "+91" + toPhone;
-            Message message = Message.creator(
-                    new PhoneNumber(to),
-                    new PhoneNumber(fromNumber),
-                    messageBody
-            ).create();
-            log.info("SMS sent → {} | SID: {}", to, message.getSid());
+            Message msg = Message.creator(new PhoneNumber(to), new PhoneNumber(fromNumber), messageBody).create();
+            log.info("SMS sent → {} | SID: {}", to, msg.getSid());
         } catch (Exception e) {
-            log.error("SMS failed → {}: {}", toPhone, e.getMessage());
+            log.warn("SMS failed → {}: {}", toPhone, e.getMessage());
         }
     }
 
-    // ── Ready-made SMS templates ──────────────────────────
-
-    public void sendAppointmentConfirmationSms(String phone, String patientName,
-                                                String doctorName, String dateTime,
-                                                String appointmentNumber) {
-        String msg = String.format(
-                "MediChain HMS: Hi %s, your appointment with Dr. %s on %s is confirmed. Ref: #%s. Please arrive 10 mins early.",
-                patientName, doctorName, dateTime, appointmentNumber);
-        sendSms(phone, msg);
+    public void sendAppointmentConfirmationSms(String phone, String patient, String doctor, String dateTime, String ref) {
+        sendSms(phone, String.format("MediChain: Hi %s, appointment with Dr.%s on %s confirmed. Ref:#%s", patient, doctor, dateTime, ref));
     }
-
-    public void sendAppointmentReminderSms(String phone, String patientName,
-                                            String doctorName, String dateTime) {
-        String msg = String.format(
-                "MediChain HMS: Reminder! %s, you have an appointment with Dr. %s tomorrow at %s. Please don't miss it.",
-                patientName, doctorName, dateTime);
-        sendSms(phone, msg);
+    public void sendAppointmentReminderSms(String phone, String patient, String doctor, String dateTime) {
+        sendSms(phone, String.format("MediChain: Reminder %s - appointment with Dr.%s tomorrow at %s", patient, doctor, dateTime));
     }
-
-    public void sendOtpSms(String phone, String otp) {
-        String msg = String.format("MediChain HMS: Your OTP is %s. Valid for 10 minutes. Do not share.", otp);
-        sendSms(phone, msg);
+    public void sendPaymentReceiptSms(String phone, String patient, String invoiceNo, String amount) {
+        sendSms(phone, String.format("MediChain: Hi %s, payment Rs.%s received for Invoice #%s. Thank you!", patient, amount, invoiceNo));
     }
-
-    public void sendPaymentReceiptSms(String phone, String patientName,
-                                       String invoiceNumber, String amount) {
-        String msg = String.format(
-                "MediChain HMS: Hi %s, payment of Rs.%s received for Invoice #%s. Thank you!",
-                patientName, amount, invoiceNumber);
-        sendSms(phone, msg);
-    }
-
     public void sendEmergencyAlertSms(String phone, String message) {
         sendSms(phone, "MediChain EMERGENCY: " + message);
     }
