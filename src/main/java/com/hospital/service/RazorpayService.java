@@ -27,15 +27,18 @@ import java.util.Map;
 @Slf4j
 public class RazorpayService {
 
-    @Value("${razorpay.key.id}")
+    @Value("${razorpay.key.id:}")
     private String keyId;
 
-    @Value("${razorpay.key.secret}")
+    @Value("${razorpay.key.secret:}")
     private String keySecret;
 
     private final InvoiceRepository invoiceRepo;
 
-    /** Create a Razorpay order for an invoice */
+    private boolean isConfigured() {
+        return keyId != null && !keyId.isBlank() && keySecret != null && !keySecret.isBlank();
+    }
+
     public Map<String, Object> createOrder(Long invoiceId) {
         Invoice invoice = invoiceRepo.findById(invoiceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice", "id", invoiceId));
@@ -43,13 +46,23 @@ public class RazorpayService {
         if ("PAID".equals(invoice.getStatus()))
             throw new BadRequestException("Invoice is already paid");
 
+        if (!isConfigured()) {
+            // Return mock order for development
+            log.warn("Razorpay not configured — returning mock order (set RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET)");
+            Map<String, Object> mock = new LinkedHashMap<>();
+            mock.put("razorpayOrderId", "order_mock_" + invoiceId);
+            mock.put("amount", invoice.getTotalAmount().multiply(BigDecimal.valueOf(100)).longValue());
+            mock.put("currency", "INR");
+            mock.put("keyId", "razorpay_not_configured");
+            mock.put("invoiceId", invoiceId);
+            mock.put("invoiceNumber", invoice.getInvoiceNumber());
+            mock.put("warning", "Razorpay not configured. Configure RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.");
+            return mock;
+        }
+
         try {
             RazorpayClient client = new RazorpayClient(keyId, keySecret);
-
-            // Razorpay expects amount in paise (INR * 100)
-            long amountPaise = invoice.getTotalAmount()
-                    .multiply(BigDecimal.valueOf(100))
-                    .longValue();
+            long amountPaise = invoice.getTotalAmount().multiply(BigDecimal.valueOf(100)).longValue();
 
             JSONObject orderRequest = new JSONObject();
             orderRequest.put("amount", amountPaise);
@@ -58,8 +71,6 @@ public class RazorpayService {
             orderRequest.put("payment_capture", 1);
 
             Order order = client.orders.create(orderRequest);
-
-            // Save razorpay order id on invoice
             invoice.setTransactionId(order.get("id").toString());
             invoiceRepo.save(invoice);
 
@@ -78,19 +89,19 @@ public class RazorpayService {
         }
     }
 
-    /** Verify Razorpay webhook signature and mark invoice paid */
     @Transactional
     public Map<String, String> verifyAndCapture(String razorpayOrderId,
                                                   String razorpayPaymentId,
                                                   String razorpaySignature) {
-        // Verify signature: HMAC-SHA256(orderId + "|" + paymentId, keySecret)
-        String payload = razorpayOrderId + "|" + razorpayPaymentId;
+        if (!isConfigured())
+            throw new BadRequestException("Razorpay is not configured on this server.");
+
+        String payload  = razorpayOrderId + "|" + razorpayPaymentId;
         String computed = hmacSha256(payload, keySecret);
 
         if (!computed.equalsIgnoreCase(razorpaySignature))
             throw new BadRequestException("Payment verification failed — invalid signature");
 
-        // Find invoice by razorpay order id (stored in transaction_id)
         Invoice invoice = invoiceRepo.findByTransactionId(razorpayOrderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice", "razorpayOrderId", razorpayOrderId));
 
@@ -100,8 +111,6 @@ public class RazorpayService {
         invoice.setAmountPaid(invoice.getTotalAmount());
         invoice.setPaidAt(java.time.LocalDateTime.now());
         invoiceRepo.save(invoice);
-
-        log.info("Payment verified and captured for invoice: {}", invoice.getInvoiceNumber());
 
         Map<String, String> result = new LinkedHashMap<>();
         result.put("status", "success");
