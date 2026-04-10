@@ -4,18 +4,14 @@ import com.hospital.entity.OrganDonor;
 import com.hospital.entity.OrganRequest;
 import com.hospital.entity.User;
 import com.hospital.exception.ResourceNotFoundException;
-import com.hospital.repository.OrganDonorRepository;
-import com.hospital.repository.OrganRequestRepository;
-import com.hospital.repository.UserRepository;
+import com.hospital.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.*;
 
-@Service
-@RequiredArgsConstructor
+@Service @RequiredArgsConstructor
 public class OrganDonorService {
 
     private final OrganDonorRepository  donorRepo;
@@ -23,17 +19,15 @@ public class OrganDonorService {
     private final UserRepository         userRepo;
 
     @Transactional
-    public OrganDonor registerDonor(Long userId, Map<String, Object> data) {
-        User user = userRepo.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-
-        OrganDonor donor = new OrganDonor();
-        donor.setUser(user);
-        donor.setOrgansToDonate((String) data.get("organsToDonate"));
-        donor.setMedicalConditions((String) data.get("medicalConditions"));
-        donor.setConsentDocumentUrl((String) data.get("consentDocumentUrl"));
-        donor.setStatus("REGISTERED");
-        return donorRepo.save(donor);
+    public OrganDonor registerDonor(Long userId, Map<String,Object> data) {
+        User user = userRepo.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User","id",userId));
+        OrganDonor d = new OrganDonor();
+        d.setUser(user);
+        d.setOrgansToDonate((String) data.get("organsToDonate"));
+        d.setMedicalConditions((String) data.get("medicalConditions"));
+        d.setConsentDocumentUrl((String) data.get("consentDocumentUrl"));
+        d.setStatus("REGISTERED");
+        return donorRepo.save(d);
     }
 
     public Page<OrganDonor> getAllDonors(int page) {
@@ -41,18 +35,17 @@ public class OrganDonorService {
     }
 
     public OrganDonor getDonorById(Long id) {
-        return donorRepo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("OrganDonor", "id", id));
+        return donorRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("OrganDonor","id",id));
     }
 
     @Transactional
-    public OrganRequest createRequest(Map<String, Object> data) {
-        OrganRequest req = new OrganRequest();
-        req.setOrganNeeded((String) data.get("organNeeded"));
-        req.setUrgencyLevel((String) data.getOrDefault("urgencyLevel", "HIGH"));
-        req.setMedicalJustification((String) data.get("medicalJustification"));
-        req.setStatus("WAITING");
-        return requestRepo.save(req);
+    public OrganRequest createRequest(Map<String,Object> data) {
+        OrganRequest r = new OrganRequest();
+        r.setOrganNeeded((String) data.get("organNeeded"));
+        r.setUrgencyLevel((String) data.getOrDefault("urgencyLevel","HIGH"));
+        r.setMedicalJustification((String) data.get("medicalJustification"));
+        r.setStatus("WAITING");
+        return requestRepo.save(r);
     }
 
     public Page<OrganRequest> getAllRequests(int page) {
@@ -61,18 +54,17 @@ public class OrganDonorService {
 
     @Transactional
     public OrganRequest updateRequestStatus(Long id, String status) {
-        OrganRequest req = requestRepo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("OrganRequest", "id", id));
-        req.setStatus(status);
-        return requestRepo.save(req);
+        OrganRequest r = requestRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("OrganRequest","id",id));
+        r.setStatus(status);
+        return requestRepo.save(r);
     }
 
-    public Map<String, Object> getDashboardStats() {
-        Map<String, Object> stats = new LinkedHashMap<>();
-        stats.put("totalDonors",     donorRepo.count());
-        stats.put("totalRequests",   requestRepo.count());
-        stats.put("waitingRequests", requestRepo.countByStatus("WAITING"));
-        stats.put("matchedRequests", requestRepo.countByStatus("MATCHED"));
-        return stats;
+    public Map<String,Object> getDashboardStats() {
+        Map<String,Object> s = new LinkedHashMap<>();
+        s.put("totalDonors", donorRepo.count());
+        s.put("totalRequests", requestRepo.count());
+        s.put("waitingRequests", requestRepo.countByStatus("WAITING"));
+        s.put("matchedRequests", requestRepo.countByStatus("MATCHED"));
+        return s;
     }
 }
