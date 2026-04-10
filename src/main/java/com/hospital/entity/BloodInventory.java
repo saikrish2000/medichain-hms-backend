@@ -23,10 +23,6 @@ public class BloodInventory {
     @Column(name = "units_available")
     private Integer unitsAvailable = 0;
 
-    // legacy column name alias
-    @Column(name = "units_in_stock", insertable = false, updatable = false)
-    private Integer unitsInStock;
-
     @Column(name = "minimum_threshold")
     private Integer minimumThreshold = 5;
 
@@ -38,15 +34,17 @@ public class BloodInventory {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt   = LocalDateTime.now();
         lastUpdated = LocalDateTime.now();
     }
 
     @PreUpdate
     protected void onUpdate() { lastUpdated = LocalDateTime.now(); }
 
+    /** Alias for compatibility */
+    public Integer getUnitsInStock() { return unitsAvailable; }
     public boolean isBelowThreshold() {
-        return (unitsAvailable != null ? unitsAvailable : 0)
-             <= (minimumThreshold != null ? minimumThreshold : 5);
+        return unitsAvailable != null && minimumThreshold != null
+               && unitsAvailable <= minimumThreshold;
     }
 }
