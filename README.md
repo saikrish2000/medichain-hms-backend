@@ -1,80 +1,144 @@
-# MediChain HMS — Backend API
+# 🏥 MediChain HMS
 
-![Backend CI](https://github.com/saikrish2000/medichain-hms-backend/actions/workflows/ci.yml/badge.svg)
-![Java](https://img.shields.io/badge/Java-17-blue?logo=openjdk)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.3-brightgreen?logo=springboot)
-![MySQL](https://img.shields.io/badge/MySQL-8.0-orange?logo=mysql)
-![Swagger](https://img.shields.io/badge/Swagger-OpenAPI%203-85EA2D?logo=swagger)
-![License](https://img.shields.io/badge/license-MIT-blue)
+**Full-stack Hospital Management System**  
+Spring Boot 3 REST API + React + MySQL
 
-Full-scale Hospital Chain Management System built with Spring Boot 3 REST API + JWT Authentication.
+---
 
-## Tech Stack
-- Spring Boot 3.2.3
-- Spring Security 6 (JWT)
-- MySQL 8 + Flyway Migrations
-- SpringDoc OpenAPI 2.3.0 (Swagger UI)
-- Lombok, ModelMapper
+## ⚡ Quick Start (2 options)
 
-## Quick Start
-
-### Prerequisites: Java 17+, MySQL 8+, Maven 3.8+
+### Option A — Docker (recommended, zero setup)
 
 ```bash
+# 1. Clone both repos side by side
 git clone https://github.com/saikrish2000/medichain-hms-backend.git
+git clone https://github.com/saikrish2000/medichain-hms-frontend.git
+
+# 2. Go into backend folder
 cd medichain-hms-backend
+
+# 3. Start everything (MySQL + Backend + Frontend)
+docker compose up --build
 ```
 
-Create DB:
-```sql
-CREATE DATABASE hospital_db;
-CREATE USER 'hospital_user'@'localhost' IDENTIFIED BY 'yourpassword';
-GRANT ALL PRIVILEGES ON hospital_db.* TO 'hospital_user'@'localhost';
-```
+That's it! Open:
+- 🌐 **App** → http://localhost:3000
+- 🔧 **API** → http://localhost:8080
+- 📖 **Swagger** → http://localhost:8080/swagger-ui.html
 
-Update `src/main/resources/application.properties`:
-```
-spring.datasource.url=jdbc:mysql://localhost:3306/hospital_db
-spring.datasource.username=hospital_user
-spring.datasource.password=yourpassword
-app.jwt.secret=your-256-bit-secret
-```
+---
 
-Run:
+### Option B — Run locally (without Docker)
+
+**Prerequisites:** Java 17, Maven, MySQL 8, Node 20
+
+**Step 1 — Create the database**
 ```bash
+mysql -u root -p
+```
+```sql
+CREATE DATABASE hospital_db CHARACTER SET utf8mb4;
+CREATE USER 'medichain'@'localhost' IDENTIFIED BY 'Medichain@123';
+GRANT ALL ON hospital_db.* TO 'medichain'@'localhost';
+FLUSH PRIVILEGES;
+exit;
+```
+
+**Step 2 — Configure backend**
+
+Edit `src/main/resources/application.properties`:
+```properties
+spring.datasource.username=medichain
+spring.datasource.password=Medichain@123
+```
+Or just use env vars (no file edit needed):
+```bash
+export DB_USERNAME=medichain
+export DB_PASSWORD=Medichain@123
+```
+
+**Step 3 — Start backend**
+```bash
+cd medichain-hms-backend
 mvn spring-boot:run
 ```
+✅ Tables auto-created by Flyway on first run
 
-## Swagger UI
-- http://localhost:8080/swagger-ui.html
-- http://localhost:8080/v3/api-docs
-
-**Auth in Swagger:** Call `POST /api/auth/login` → copy `token` → click Authorize → enter `Bearer <token>`
-
-## Roles & Endpoints
-| Role | Path |
-|------|------|
-| Admin | /api/admin/** |
-| Doctor | /api/doctor/** |
-| Nurse | /api/nurse/** |
-| Patient | /api/patient/** |
-| Receptionist | /api/receptionist/** |
-| Pharmacist | /api/pharmacy/** |
-| Lab Technician | /api/lab/** |
-| Blood Bank | /api/blood-bank/** |
-| Ambulance | /api/ambulance/** |
-| Public | /api/auth/** |
-
-## DB Migrations (Flyway)
-V1 → V6 covering 54+ tables across all modules.
-
-## Docker
+**Step 4 — Start frontend**
 ```bash
-docker-compose up -d
+cd medichain-hms-frontend
+cp .env.example .env.local   # VITE_API_BASE_URL=http://localhost:8080
+npm install
+npm run dev
 ```
 
-## Branches
-`main` (prod) · `develop` (active dev) · `feature/*` · `hotfix/*`
+✅ Open http://localhost:5173
 
-## Frontend Repo
-https://github.com/saikrish2000/medichain-hms-frontend
+---
+
+## 🔑 Default Credentials
+
+| Role | Register at | Notes |
+|------|------------|-------|
+| Admin | `/auth/register` with role `ADMIN` | First admin auto-approved |
+| Doctor | Register with role `DOCTOR` | Needs admin approval |
+| Patient | Register with role `PATIENT` | Auto-approved |
+
+---
+
+## 🔌 Optional Integrations
+
+All optional — app works without them (uses log output instead):
+
+| Service | Env Vars | How to get |
+|---------|----------|-----------|
+| Gmail SMTP | `MAIL_USERNAME`, `MAIL_PASSWORD` | [App passwords](https://myaccount.google.com/apppasswords) |
+| Razorpay | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | [Dashboard](https://dashboard.razorpay.com/app/keys) |
+| Twilio SMS | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` | [Console](https://console.twilio.com) |
+
+Set via `.env` file or export in terminal before running.
+
+---
+
+## 📋 Features
+
+| Module | Roles | Endpoints |
+|--------|-------|-----------|
+| Auth | All | `/api/auth/**` |
+| Admin Dashboard | ADMIN | `/api/admin/**` |
+| Doctor | DOCTOR | `/api/doctor/**` |
+| Nurse | NURSE | `/api/nurse/**` |
+| Patient | PATIENT | `/api/patient/**` |
+| Billing + PDF | ADMIN, RECEPTIONIST | `/api/billing/**` |
+| Razorpay Payments | Authenticated | `/api/payment/**` |
+| Blood Bank | BLOOD_BANK_MANAGER | `/api/blood-bank/**` |
+| Lab | LAB_TECHNICIAN | `/api/lab/**` |
+| Pharmacy | PHARMACIST | `/api/pharmacy/**` |
+| Ambulance + GPS | AMBULANCE_OPERATOR | `/api/ambulance/**` |
+| Organ Donor | Authenticated | `/api/organ-donor/**` |
+| Appointments | All | `/api/appointments/**` |
+
+---
+
+## 🛠️ Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| `Access denied for user` | Check `DB_USERNAME` and `DB_PASSWORD` |
+| `Flyway migration failed` | Drop and recreate `hospital_db`, re-run |
+| Port 8080 in use | Set `SERVER_PORT=8081` env var |
+| `Email not sent` | Set `MAIL_USERNAME` + `MAIL_PASSWORD` (optional) |
+| CORS error in browser | Backend not running or wrong `VITE_API_BASE_URL` |
+
+---
+
+## 🗂️ Tech Stack
+
+- **Backend:** Spring Boot 3.2, Spring Security JWT, Flyway, JPA/Hibernate
+- **Database:** MySQL 8
+- **Frontend:** React 18, Vite, Tailwind CSS
+- **Payments:** Razorpay
+- **SMS:** Twilio
+- **PDF:** iTextPDF
+- **Real-time:** WebSocket (STOMP/SockJS)
+- **API Docs:** Swagger UI (`/swagger-ui.html`)
