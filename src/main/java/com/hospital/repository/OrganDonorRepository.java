@@ -12,5 +12,4 @@ import java.util.Optional;
 public interface OrganDonorRepository extends JpaRepository<OrganDonor, Long> {
     Optional<OrganDonor> findByUserId(Long userId);
     Page<OrganDonor> findByStatus(String status, Pageable pageable);
-    long countByStatus(String status);
 }
