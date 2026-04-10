@@ -6,61 +6,36 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-@Service
-@RequiredArgsConstructor
-@Slf4j
+@Service @RequiredArgsConstructor @Slf4j
 public class AppointmentReminderScheduler {
 
-    private final AppointmentRepository   appointmentRepo;
-    private final NotificationService     notificationService;
+    private final AppointmentRepository appointmentRepo;
+    private final NotificationService   notificationService;
 
-    /**
-     * Runs every day at 8:00 AM IST.
-     * Sends reminders for all CONFIRMED appointments scheduled for tomorrow.
-     */
+    /** Every day at 8:00 AM IST */
     @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Kolkata")
     public void sendDailyReminders() {
         LocalDate tomorrow = LocalDate.now().plusDays(1);
-        log.info("Running appointment reminder job for: {}", tomorrow);
-
-        List<Appointment> appointments = appointmentRepo
-                .findByAppointmentDateAndStatus(tomorrow, "CONFIRMED");
-
+        log.info("Appointment reminders for: {}", tomorrow);
+        List<Appointment> list = appointmentRepo.findByAppointmentDateAndStatus(tomorrow, "CONFIRMED");
         int sent = 0;
-        for (Appointment appt : appointments) {
+        for (Appointment a : list) {
             try {
-                var patient = appt.getPatient();
-                var doctor  = appt.getDoctor();
-                if (patient == null || patient.getUser() == null) continue;
-
-                String patientName = patient.getUser().getFirstName() + " " + patient.getUser().getLastName();
-                String doctorName  = doctor != null ? doctor.getUser().getFirstName() + " " + doctor.getUser().getLastName() : "Doctor";
-                String email       = patient.getUser().getEmail();
-                String phone       = patient.getUser().getPhone();
-                String dateTime    = appt.getAppointmentDate().format(DateTimeFormatter.ofPattern("dd MMM yyyy"))
-                                   + " at " + appt.getAppointmentTime().format(DateTimeFormatter.ofPattern("hh:mm a"));
-
-                // Email reminder
-                notificationService.sendAppointmentReminder(
-                        email, patientName, doctorName,
-                        appt.getAppointmentNumber(),
-                        appt.getAppointmentDate(), appt.getAppointmentTime());
-
-                // SMS reminder
-                if (phone != null && !phone.isBlank())
-                    notificationService.sendAppointmentReminderSms(phone, patientName, doctorName, dateTime);
-
+                if (a.getPatient() == null || a.getPatient().getUser() == null) continue;
+                var u = a.getPatient().getUser();
+                String name   = u.getFirstName() + " " + u.getLastName();
+                String doc    = a.getDoctor() != null ? a.getDoctor().getUser().getFirstName()+" "+a.getDoctor().getUser().getLastName() : "Doctor";
+                String dtStr  = a.getAppointmentDate().format(DateTimeFormatter.ofPattern("dd MMM"))+" at "+a.getAppointmentTime().format(DateTimeFormatter.ofPattern("hh:mm a"));
+                notificationService.sendAppointmentReminder(u.getEmail(), name, doc, a.getAppointmentNumber(), a.getAppointmentDate(), a.getAppointmentTime());
+                if (u.getPhone() != null && !u.getPhone().isBlank())
+                    notificationService.sendAppointmentReminderSms(u.getPhone(), name, doc, dtStr);
                 sent++;
-            } catch (Exception e) {
-                log.error("Failed reminder for appointment {}: {}", appt.getId(), e.getMessage());
-            }
+            } catch (Exception e) { log.error("Reminder failed for appt {}: {}", a.getId(), e.getMessage()); }
         }
-        log.info("Appointment reminders sent: {}/{}", sent, appointments.size());
+        log.info("Reminders sent: {}/{}", sent, list.size());
     }
 }
