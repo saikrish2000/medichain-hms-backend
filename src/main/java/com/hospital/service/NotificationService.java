@@ -19,75 +19,74 @@ import java.time.format.DateTimeFormatter;
 public class NotificationService {
 
     private final JavaMailSender mailSender;
-    private final TwilioService twilioService;
+    private final TwilioService  twilioService;
 
-    @Value("${app.mail.from}")
+    @Value("${spring.mail.username:}")
+    private String mailUsername;
+
+    @Value("${app.mail.from:noreply@medichain.com}")
     private String fromEmail;
 
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
-    // ── AUTH ───────────────────────────────────────────────
+    private boolean isMailConfigured() {
+        return mailUsername != null && !mailUsername.isBlank();
+    }
 
+    // ── AUTH ────────────────────────────────────────────────────
     @Async
     public void sendEmailVerification(String toEmail, String fullName, String token) {
         String url = baseUrl + "/verify-email?token=" + token;
-        sendHtmlEmail(toEmail, "Verify your HMS account",
+        sendHtmlEmail(toEmail, "Verify your MediChain account",
             buildTemplate("Verify Your Email 📧", "Hi " + fullName + ",",
-                "Thanks for registering on MediChain HMS. Click the button below to verify your email address.",
-                url, "Verify Email"));
+                "Thanks for registering. Click below to verify your email address.", url, "Verify Email"));
     }
 
     @Async
     public void sendPasswordResetEmail(String toEmail, String fullName, String token) {
         String url = baseUrl + "/reset-password?token=" + token;
-        sendHtmlEmail(toEmail, "Reset your HMS password",
+        sendHtmlEmail(toEmail, "Reset your MediChain password",
             buildTemplate("Reset Your Password 🔒", "Hi " + fullName + ",",
-                "We received a request to reset your password. Click below to set a new password. This link expires in 2 hours.",
-                url, "Reset Password"));
+                "Click below to set a new password. This link expires in 2 hours.", url, "Reset Password"));
     }
 
     @Async
     public void sendApprovalNotification(String toEmail, String fullName, String role) {
-        sendHtmlEmail(toEmail, "Your HMS account has been approved!",
+        sendHtmlEmail(toEmail, "Your MediChain account has been approved!",
             buildTemplate("Account Approved 🎉", "Hi " + fullName + ",",
-                "Congratulations! Your <strong>" + role + "</strong> account on MediChain HMS " +
-                "has been approved by the administrator. You can now login and access your dashboard.",
+                "Your <strong>" + role + "</strong> account has been approved. You can now login.",
                 baseUrl + "/login", "Login Now"));
     }
 
     @Async
     public void sendRejectionNotification(String toEmail, String fullName, String reason) {
-        sendHtmlEmail(toEmail, "HMS Account Application Update",
+        sendHtmlEmail(toEmail, "MediChain Account Application Update",
             buildTemplate("Application Update", "Hi " + fullName + ",",
-                "We regret to inform you that your account application could not be approved at this time." +
-                "<br><br><strong>Reason:</strong> " + reason +
-                "<br><br>If you believe this is an error, please contact our support team.", null, null));
+                "Your application could not be approved at this time.<br><br><strong>Reason:</strong> " + reason,
+                null, null));
     }
 
-    // ── APPOINTMENTS ───────────────────────────────────────
-
+    // ── APPOINTMENTS ────────────────────────────────────────────
     @Async
     public void sendAppointmentRequestToDoctor(String doctorEmail, String doctorName,
                                                 String patientName, LocalDate date, LocalTime time) {
-        String formatted = formatDateTime(date, time);
+        String formatted = fmt(date, time);
         sendHtmlEmail(doctorEmail, "New Appointment Request — " + patientName,
             buildTemplate("New Appointment Request 📋", "Hi Dr. " + doctorName + ",",
-                "<strong>" + patientName + "</strong> has requested an appointment with you on " +
-                "<strong>" + formatted + "</strong>.<br><br>Please login to confirm or reject the request.",
-                baseUrl + "/doctor/appointments?filter=pending", "Review Request"));
+                "<strong>" + patientName + "</strong> has requested an appointment on <strong>" + formatted + "</strong>.",
+                baseUrl + "/doctor/appointments", "Review Request"));
     }
 
     @Async
     public void sendAppointmentConfirmationToPatient(String patientEmail, String patientName,
                                                       String appointmentNumber, String doctorName,
                                                       LocalDate date, LocalTime time) {
-        String formatted = formatDateTime(date, time);
-        sendHtmlEmail(patientEmail, "Appointment Confirmed — " + appointmentNumber,
+        String formatted = fmt(date, time);
+        sendHtmlEmail(patientEmail, "Appointment Confirmed — #" + appointmentNumber,
             buildTemplate("Appointment Confirmed ✅", "Hi " + patientName + ",",
-                "Your appointment with <strong>Dr. " + doctorName + "</strong> on <strong>" + formatted + "</strong> " +
-                "is confirmed.<br><br>Reference: <strong>#" + appointmentNumber + "</strong><br><br>" +
-                "Please arrive 10 minutes before your scheduled time.",
+                "Your appointment with <strong>Dr. " + doctorName + "</strong> on <strong>" + formatted
+                + "</strong> is confirmed.<br>Ref: <strong>#" + appointmentNumber + "</strong>",
                 baseUrl + "/patient/appointments", "View Appointment"));
     }
 
@@ -95,51 +94,41 @@ public class NotificationService {
     public void sendAppointmentStatusUpdate(String patientEmail, String patientName,
                                              String appointmentNumber, String status,
                                              LocalDate date, LocalTime time) {
-        String formatted = formatDateTime(date, time);
-        String emoji = switch (status) {
-            case "CONFIRMED" -> "✅";
-            case "REJECTED"  -> "❌";
-            default          -> "🚫";
-        };
+        String formatted = fmt(date, time);
+        String emoji   = "CONFIRMED".equals(status) ? "✅" : ("REJECTED".equals(status) ? "❌" : "🚫");
         String heading = "Appointment " + capitalize(status) + " " + emoji;
-        String msg = switch (status) {
-            case "CONFIRMED" -> "Your appointment (Ref: <strong>#" + appointmentNumber + "</strong>) on " +
-                                "<strong>" + formatted + "</strong> has been <strong>confirmed</strong>. Please arrive 10 minutes early.";
-            case "REJECTED"  -> "Your appointment request (Ref: <strong>#" + appointmentNumber + "</strong>) " +
-                                "for <strong>" + formatted + "</strong> has been rejected. You may book with another doctor.";
-            default          -> "Your appointment (Ref: <strong>#" + appointmentNumber + "</strong>) has been cancelled.";
-        };
-        sendHtmlEmail(patientEmail, "Appointment " + capitalize(status) + " — MediChain HMS",
+        String msg     = "CONFIRMED".equals(status)
+            ? "Your appointment (Ref: <strong>#" + appointmentNumber + "</strong>) on <strong>" + formatted + "</strong> is confirmed."
+            : "Your appointment (Ref: <strong>#" + appointmentNumber + "</strong>) has been " + status.toLowerCase() + ".";
+        sendHtmlEmail(patientEmail, "Appointment " + capitalize(status),
             buildTemplate(heading, "Hi " + patientName + ",", msg,
-                baseUrl + "/patient/appointments", "View My Appointments"));
+                baseUrl + "/patient/appointments", "View Appointments"));
     }
 
     @Async
     public void sendAppointmentReminder(String toEmail, String fullName, String doctorName,
                                          String appointmentNumber, LocalDate date, LocalTime time) {
-        String formatted = formatDateTime(date, time);
+        String formatted = fmt(date, time);
         sendHtmlEmail(toEmail, "Appointment Reminder — Tomorrow",
             buildTemplate("Appointment Reminder ⏰", "Hi " + fullName + ",",
-                "Reminder: appointment with <strong>Dr. " + doctorName + "</strong> tomorrow, " +
-                "<strong>" + formatted + "</strong>.<br><br>Ref: <strong>#" + appointmentNumber + "</strong>",
+                "Reminder: appointment with <strong>Dr. " + doctorName + "</strong> tomorrow, <strong>" + formatted
+                + "</strong>.<br>Ref: <strong>#" + appointmentNumber + "</strong>",
                 baseUrl + "/patient/appointments", "View Appointment"));
     }
 
     @Async
     public void sendPaymentConfirmation(String toEmail, String fullName,
                                          String invoiceNumber, String amount) {
-        sendHtmlEmail(toEmail, "Payment Received — " + invoiceNumber,
+        sendHtmlEmail(toEmail, "Payment Received — #" + invoiceNumber,
             buildTemplate("Payment Confirmed 💳", "Hi " + fullName + ",",
-                "We've received your payment of <strong>₹" + amount + "</strong> for Invoice " +
-                "<strong>#" + invoiceNumber + "</strong>.<br><br>Thank you for choosing MediChain HMS.",
+                "Payment of <strong>₹" + amount + "</strong> received for Invoice <strong>#" + invoiceNumber + "</strong>.",
                 baseUrl + "/patient/bills", "View Invoice"));
     }
 
-    // ── SMS DELEGATES ───────────────────────────────────────
-
+    // ── SMS ─────────────────────────────────────────────────────
     @Async
-    public void sendSms(String phoneNumber, String message) {
-        twilioService.sendSms(phoneNumber, message);
+    public void sendSms(String phone, String message) {
+        twilioService.sendSms(phone, message);
     }
 
     @Async
@@ -160,14 +149,17 @@ public class NotificationService {
         twilioService.sendPaymentReceiptSms(phone, patientName, invoiceNumber, amount);
     }
 
-    // ── PRIVATE HELPERS ────────────────────────────────────
-
-    private String formatDateTime(LocalDate date, LocalTime time) {
-        return date.format(DateTimeFormatter.ofPattern("dd MMMM yyyy"))
+    // ── PRIVATE HELPERS ──────────────────────────────────────────
+    private String fmt(LocalDate date, LocalTime time) {
+        return date.format(DateTimeFormatter.ofPattern("dd MMM yyyy"))
              + " at " + time.format(DateTimeFormatter.ofPattern("hh:mm a"));
     }
 
     private void sendHtmlEmail(String to, String subject, String html) {
+        if (!isMailConfigured()) {
+            log.info("[EMAIL STUB] To: {} | Subject: {} | (configure MAIL_USERNAME to send real emails)", to, subject);
+            return;
+        }
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -178,40 +170,28 @@ public class NotificationService {
             mailSender.send(message);
             log.info("Email sent → {}", to);
         } catch (Exception e) {
-            log.error("Email failed → {}: {}", to, e.getMessage());
+            log.warn("Email failed → {}: {} (check MAIL_USERNAME/MAIL_PASSWORD)", to, e.getMessage());
         }
     }
 
     private String buildTemplate(String heading, String greeting, String body,
-                                  String buttonUrl, String buttonText) {
-        String button = (buttonUrl != null)
-            ? "<div style='text-align:center;margin-top:24px;'>" +
-              "<a href='" + buttonUrl + "' style='display:inline-block;padding:12px 28px;" +
-              "background:#6C63FF;color:#fff;border-radius:50px;text-decoration:none;" +
-              "font-weight:700;font-size:15px;'>" + buttonText + "</a></div>"
-            : "";
-        return """
-            <!DOCTYPE html><html><body style="margin:0;padding:0;background:#F0F4FF;font-family:Arial,sans-serif;">
-              <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:24px;
-                          border:2.5px solid #E2E8FF;box-shadow:6px 6px 0px #D0CEFF;overflow:hidden;">
-                <div style="background:linear-gradient(135deg,#6C63FF,#FF6584);padding:32px;text-align:center;">
-                  <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">🏥 MediChain HMS</div>
-                </div>
-                <div style="padding:32px;">
-                  <h2 style="color:#1a1a2e;font-size:22px;margin-bottom:8px;">""" + heading + """
-                  </h2>
-                  <p style="color:#444;font-size:15px;margin-bottom:16px;">""" + greeting + """
-                  </p>
-                  <div style="color:#333;font-size:15px;line-height:1.7;">""" + body + """
-                  </div>""" + button + """
-                </div>
-                <div style="background:#F8F9FF;padding:20px;text-align:center;color:#888;font-size:12px;">
-                  MediChain HMS · Do not reply to this email · 
-                  <a href="mailto:support@medichain.com" style="color:#6C63FF;">support@medichain.com</a>
-                </div>
-              </div>
-            </body></html>
-            """;
+                                  String btnUrl, String btnText) {
+        String btn = (btnUrl != null)
+            ? "<div style='text-align:center;margin-top:24px;'><a href='" + btnUrl
+              + "' style='display:inline-block;padding:12px 28px;background:#6C63FF;color:#fff;"
+              + "border-radius:50px;text-decoration:none;font-weight:700;font-size:15px;'>"
+              + btnText + "</a></div>" : "";
+        return "<!DOCTYPE html><html><body style='margin:0;padding:0;background:#F0F4FF;font-family:Arial,sans-serif;'>"
+            + "<div style='max-width:560px;margin:40px auto;background:#fff;border-radius:20px;"
+            + "border:2px solid #E2E8FF;box-shadow:6px 6px 0 #D0CEFF;overflow:hidden;'>"
+            + "<div style='background:linear-gradient(135deg,#6C63FF,#FF6584);padding:28px;text-align:center;'>"
+            + "<div style='font-size:24px;font-weight:800;color:#fff;'>🏥 MediChain HMS</div></div>"
+            + "<div style='padding:28px;'><h2 style='color:#1a1a2e;margin-bottom:8px;'>" + heading + "</h2>"
+            + "<p style='color:#444;'>" + greeting + "</p>"
+            + "<div style='color:#333;line-height:1.7;'>" + body + "</div>" + btn + "</div>"
+            + "<div style='background:#F8F9FF;padding:16px;text-align:center;color:#888;font-size:12px;'>"
+            + "MediChain HMS · <a href='mailto:support@medichain.com' style='color:#6C63FF;'>support@medichain.com</a>"
+            + "</div></div></body></html>";
     }
 
     private String capitalize(String s) {
