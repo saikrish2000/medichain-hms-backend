@@ -24,14 +24,15 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     Page<Invoice> findByStatus(String status, Pageable pageable);
 
-    long countByStatus(String status);
+    @Query("SELECT COUNT(i) FROM Invoice i WHERE i.status = :status")
+    long countByStatus(@Param("status") String status);
+
+    @Query("SELECT COUNT(i) FROM Invoice i WHERE i.patient.id = :pid AND i.status = :status")
+    long countByPatientIdAndStatus(@Param("pid") Long patientId, @Param("status") String status);
 
     @Query("SELECT SUM(i.amountPaid) FROM Invoice i WHERE i.status = 'PAID'")
     Optional<BigDecimal> sumPaidAmount();
 
     @Query("SELECT SUM(i.totalAmount) FROM Invoice i WHERE i.status = 'PENDING'")
     Optional<BigDecimal> sumPendingAmount();
-
-    @Query("SELECT COUNT(i) FROM Invoice i WHERE i.patient.id = :patientId AND i.status = 'PENDING'")
-    long countPendingByPatientId(@Param("patientId") Long patientId);
 }
