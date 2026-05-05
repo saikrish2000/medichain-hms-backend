@@ -1,23 +1,18 @@
 package com.hospital.controller;
 
 import com.hospital.entity.Ambulance;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import com.hospital.entity.AmbulanceCall;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import com.hospital.service.AmbulanceService;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.Map;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/ambulance")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('AMBULANCE_OPERATOR','ADMIN')")
 public class AmbulanceController {
 
     private final AmbulanceService ambulanceService;
@@ -38,7 +33,8 @@ public class AmbulanceController {
     }
 
     @GetMapping("/calls")
-    public ResponseEntity<?> calls(@RequestParam(defaultValue="0") int page) {
+    public ResponseEntity<?> calls(@RequestParam(defaultValue="0") int page,
+                                   @RequestParam(required=false) String status) {
         return ResponseEntity.ok(ambulanceService.getAllCalls(page));
     }
 
@@ -53,14 +49,13 @@ public class AmbulanceController {
 
     @PatchMapping("/calls/{id}/status")
     public ResponseEntity<?> updateCallStatus(@PathVariable Long id,
-                                               @RequestBody Map<String,String> body) {
-        String status = body.get("status").toUpperCase();
-        return ResponseEntity.ok(ambulanceService.updateCallStatus(id, status));
+                                              @RequestBody Map<String,String> body) {
+        return ResponseEntity.ok(ambulanceService.updateCallStatus(id, body.get("status").toUpperCase()));
     }
 
     @PatchMapping("/fleet/{id}/location")
     public ResponseEntity<?> updateLocation(@PathVariable Long id,
-                                             @RequestBody Map<String,Object> body) {
+                                            @RequestBody Map<String,Object> body) {
         double lat = Double.parseDouble(body.get("latitude").toString());
         double lng = Double.parseDouble(body.get("longitude").toString());
         ambulanceService.updateLocation(id, lat, lng);
