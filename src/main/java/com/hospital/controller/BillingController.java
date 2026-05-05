@@ -1,23 +1,14 @@
 package com.hospital.controller;
 
-import com.hospital.service.BillingService;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import com.hospital.security.UserPrincipal;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import com.hospital.service.BillingService;
 import lombok.RequiredArgsConstructor;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import java.math.BigDecimal;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.List;
-import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.Map;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/billing")
@@ -27,41 +18,47 @@ public class BillingController {
     private final BillingService billingService;
 
     @GetMapping("/dashboard")
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
     public ResponseEntity<?> dashboard() {
-        return ResponseEntity.ok(billingService.getDashboardStats());
+        return ResponseEntity.ok(billingService.getDashboard());
     }
 
     @GetMapping("/invoices")
-    public ResponseEntity<?> invoices(@RequestParam(defaultValue="0") int page) {
-        return ResponseEntity.ok(billingService.getAllInvoices(page));
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
+    public ResponseEntity<?> invoices(@RequestParam(defaultValue="0") int page,
+                                      @RequestParam(required=false) String status) {
+        return ResponseEntity.ok(billingService.getInvoices(page, status));
     }
 
     @GetMapping("/invoices/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST','PATIENT')")
     public ResponseEntity<?> invoice(@PathVariable Long id) {
-        return ResponseEntity.ok(billingService.getInvoiceById(id));
+        return ResponseEntity.ok(billingService.getInvoice(id));
     }
 
     @PostMapping("/invoices")
-    public ResponseEntity<?> create(@RequestBody Map<String,Object> body) {
-        Long patId  = Long.parseLong(body.get("patientId").toString());
-        Long apptId = body.containsKey("appointmentId") ?
-                      Long.parseLong(body.get("appointmentId").toString()) : null;
-        @SuppressWarnings("unchecked")
-        List<Map<String,Object>> items = (List<Map<String,Object>>) body.get("items");
-        return ResponseEntity.ok(billingService.createInvoice(patId, apptId, items));
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
+    public ResponseEntity<?> createInvoice(@RequestBody Map<String,Object> body) {
+        return ResponseEntity.ok(billingService.createInvoice(body));
     }
 
     @PostMapping("/invoices/{id}/pay")
-    public ResponseEntity<?> markPaid(@PathVariable Long id,
-                                       @RequestBody Map<String,String> body) {
-        String method = body.getOrDefault("paymentMethod", "CASH").toUpperCase();
-        return ResponseEntity.ok(billingService.markAsPaid(id, method, body.get("transactionId")));
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST','PATIENT')")
+    public ResponseEntity<?> pay(@PathVariable Long id,
+                                 @RequestBody Map<String,Object> body) {
+        return ResponseEntity.ok(billingService.recordPayment(id, body));
+    }
+
+    @GetMapping("/invoices/{id}/pdf")
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST','PATIENT')")
+    public ResponseEntity<?> downloadPdf(@PathVariable Long id) {
+        return billingService.downloadPdf(id);
     }
 
     @GetMapping("/my-bills")
-    public ResponseEntity<?> myBills(
-            @RequestParam(defaultValue="0") int page,
-            @AuthenticationPrincipal UserPrincipal u) {
-        return ResponseEntity.ok(billingService.getMyBills(u.getId(), page));
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<?> myBills(@AuthenticationPrincipal UserPrincipal me,
+                                     @RequestParam(defaultValue="0") int page) {
+        return ResponseEntity.ok(billingService.getPatientBills(me.getId(), page));
     }
 }
