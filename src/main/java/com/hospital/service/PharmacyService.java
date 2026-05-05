@@ -4,7 +4,6 @@ import com.hospital.entity.*;
 import com.hospital.exception.BadRequestException;
 import com.hospital.exception.ResourceNotFoundException;
 import com.hospital.repository.*;
-import com.hospital.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -23,10 +22,21 @@ public class PharmacyService {
     private final DoctorRepository       doctorRepo;
     private final AppointmentRepository  appointmentRepo;
 
+    // ── Dashboard ─────────────────────────────────────────────────────────
+    public Map<String,Object> getDashboard() {
+        Map<String,Object> s = new LinkedHashMap<>();
+        s.put("totalMedicines",      medicineRepo.count());
+        s.put("lowStockCount",       medicineRepo.findByQuantityInStockLessThanEqualAndIsActiveTrue(10).size());
+        s.put("pendingPrescriptions",prescriptionRepo.countByStatus("PENDING"));
+        s.put("dispensedToday",      0L);
+        return s;
+    }
+
+    // ── Medicines ─────────────────────────────────────────────────────────
     public Page<Medicine> searchMedicines(String q, int page) {
         if (q != null && !q.isBlank())
-            return medicineRepo.searchByKeyword(q, PageRequest.of(page, 20));
-        return medicineRepo.findAll(PageRequest.of(page, 20, Sort.by("name")));
+            return medicineRepo.searchByKeyword(q, PageRequest.of(page,20));
+        return medicineRepo.findAll(PageRequest.of(page,20,Sort.by("name")));
     }
 
     public List<Medicine> getLowStockMedicines() {
@@ -41,14 +51,43 @@ public class PharmacyService {
             .orElseThrow(() -> new ResourceNotFoundException("Medicine","id",id));
         int cur = m.getQuantityInStock();
         switch (op) {
-            case "add"      -> m.setQuantityInStock(cur + qty);
             case "subtract" -> {
                 if (cur < qty) throw new BadRequestException("Insufficient stock");
                 m.setQuantityInStock(cur - qty);
             }
-            default         -> m.setQuantityInStock(qty);
+            case "set"      -> m.setQuantityInStock(qty);
+            default         -> m.setQuantityInStock(cur + qty);  // "add" (default)
         }
         return medicineRepo.save(m);
+    }
+
+    // ── Prescriptions ─────────────────────────────────────────────────────
+    public Page<Prescription> getPrescriptions(int page) {
+        return prescriptionRepo.findAll(PageRequest.of(page,20,Sort.by("createdAt").descending()));
+    }
+
+    public List<Prescription> getPendingPrescriptions() {
+        return prescriptionRepo.findByStatus("PENDING");
+    }
+
+    @Transactional
+    public Prescription dispensePrescription(Long id) {
+        Prescription rx = prescriptionRepo.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Prescription","id",id));
+        if ("DISPENSED".equals(rx.getStatus()))
+            throw new BadRequestException("Already dispensed");
+        // Deduct stock
+        for (PrescriptionItem item : rx.getItems()) {
+            Medicine med = item.getMedicine();
+            int qty = item.getQuantity() != null ? item.getQuantity() : 1;
+            if (med.getQuantityInStock() >= qty) {
+                med.setQuantityInStock(med.getQuantityInStock() - qty);
+                medicineRepo.save(med);
+            }
+        }
+        rx.setStatus("DISPENSED");
+        rx.setDispensedAt(LocalDateTime.now());
+        return prescriptionRepo.save(rx);
     }
 
     @Transactional
@@ -67,6 +106,7 @@ public class PharmacyService {
         rx.setCreatedAt(LocalDateTime.now());
         if (appointmentId != null)
             appointmentRepo.findById(appointmentId).ifPresent(rx::setAppointment);
+
         List<PrescriptionItem> rxItems = new ArrayList<>();
         if (items != null) {
             for (Map<String,Object> item : items) {
@@ -85,38 +125,5 @@ public class PharmacyService {
         }
         rx.setItems(rxItems);
         return prescriptionRepo.save(rx);
-    }
-
-    @Transactional
-    public Prescription dispensePrescription(Long id, UserPrincipal pharmacist) {
-        Prescription rx = prescriptionRepo.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Prescription","id",id));
-        if ("DISPENSED".equals(rx.getStatus()))
-            throw new BadRequestException("Already dispensed");
-        for (PrescriptionItem item : rx.getItems()) {
-            Medicine med = item.getMedicine();
-            int qty = item.getQuantity() != null ? item.getQuantity() : 1;
-            if (med.getQuantityInStock() >= qty) {
-                med.setQuantityInStock(med.getQuantityInStock() - qty);
-                medicineRepo.save(med);
-            }
-        }
-        rx.setStatus("DISPENSED");
-        rx.setDispensedAt(LocalDateTime.now());
-        rx.setDispensedBy(pharmacist.getId());
-        return prescriptionRepo.save(rx);
-    }
-
-    public Page<Prescription> getPendingPrescriptions(int page) {
-        return prescriptionRepo.findByStatus("PENDING",
-            PageRequest.of(page, 20, Sort.by("createdAt").descending()));
-    }
-
-    public Map<String,Object> getDashboardStats() {
-        Map<String,Object> s = new LinkedHashMap<>();
-        s.put("totalMedicines",    medicineRepo.count());
-        s.put("lowStockCount",     medicineRepo.findByQuantityInStockLessThanEqualAndIsActiveTrue(10).size());
-        s.put("pendingPrescriptions", prescriptionRepo.countByStatus("PENDING"));
-        return s;
     }
 }
