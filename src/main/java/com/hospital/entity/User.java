@@ -1,12 +1,14 @@
 package com.hospital.entity;
 
 import com.hospital.enums.BloodGroup;
+import com.hospital.enums.Gender;
 import com.hospital.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.*;
 
-@Entity @Table(name = "users")
+@Entity
+@Table(name = "users")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class User {
 
@@ -96,14 +98,14 @@ public class User {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt  = LocalDateTime.now();
-        if (enabled == null) enabled = true;
+        if (enabled == null)  enabled  = true;
         if (isActive == null) isActive = true;
     }
 
     @PreUpdate
     protected void onUpdate() { updatedAt = LocalDateTime.now(); }
 
-    public String getFullName() { return firstName + " " + lastName; }
-
-    public enum Gender { MALE, FEMALE, OTHER }
+    public String getFullName() {
+        return (firstName != null ? firstName : "") + " " + (lastName != null ? lastName : "");
+    }
 }
