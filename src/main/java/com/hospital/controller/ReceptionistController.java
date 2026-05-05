@@ -1,23 +1,14 @@
 package com.hospital.controller;
 
-import com.hospital.service.*;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import com.hospital.security.UserPrincipal;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import com.hospital.service.AdminService;
+import com.hospital.service.AppointmentService;
+import com.hospital.service.ReceptionistService;
 import lombok.RequiredArgsConstructor;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
-import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.time.LocalDate;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.Map;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/receptionist")
@@ -40,9 +31,8 @@ public class ReceptionistController {
     }
 
     @GetMapping("/appointments")
-    public ResponseEntity<?> appointments(
-            @RequestParam(required=false) String date,
-            @RequestParam(defaultValue="0") int page) {
+    public ResponseEntity<?> appointments(@RequestParam(required=false) String date,
+                                          @RequestParam(defaultValue="0") int page) {
         LocalDate d = date != null ? LocalDate.parse(date) : LocalDate.now();
         return ResponseEntity.ok(receptionistService.getAppointmentsByDate(d, page));
     }
@@ -55,5 +45,10 @@ public class ReceptionistController {
     @GetMapping("/patients/search")
     public ResponseEntity<?> searchPatients(@RequestParam String q) {
         return ResponseEntity.ok(receptionistService.searchPatients(q));
+    }
+
+    @PostMapping("/appointments/book")
+    public ResponseEntity<?> bookAppointment(@RequestBody java.util.Map<String,Object> body) {
+        return ResponseEntity.ok(appointmentService.bookByReceptionist(body));
     }
 }
