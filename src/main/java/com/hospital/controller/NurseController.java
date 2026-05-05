@@ -1,23 +1,14 @@
 package com.hospital.controller;
 
-import com.hospital.entity.*;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import com.hospital.service.*;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import com.hospital.security.UserPrincipal;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import com.hospital.service.NurseService;
 import lombok.RequiredArgsConstructor;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
-import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.Map;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/nurse")
@@ -28,15 +19,13 @@ public class NurseController {
     private final NurseService nurseService;
 
     @GetMapping("/dashboard")
-    public ResponseEntity<Map<String,Object>> dashboard(
-            @AuthenticationPrincipal UserPrincipal u) {
+    public ResponseEntity<Map<String,Object>> dashboard(@AuthenticationPrincipal UserPrincipal u) {
         return ResponseEntity.ok(nurseService.getDashboard(u.getId()));
     }
 
     @GetMapping("/patients")
-    public ResponseEntity<?> patients(
-            @RequestParam(defaultValue="0") int page,
-            @AuthenticationPrincipal UserPrincipal u) {
+    public ResponseEntity<?> patients(@RequestParam(defaultValue="0") int page,
+                                      @AuthenticationPrincipal UserPrincipal u) {
         return ResponseEntity.ok(nurseService.getAssignedPatients(u.getId(), page));
     }
 
@@ -45,15 +34,28 @@ public class NurseController {
         return ResponseEntity.ok(nurseService.getTasks(u.getId()));
     }
 
-    @PostMapping("/tasks/{id}/complete")
+    @PutMapping("/tasks/{id}/start")
+    public ResponseEntity<?> startTask(@PathVariable Long id) {
+        nurseService.startTask(id);
+        return ResponseEntity.ok(Map.of("message", "Task started"));
+    }
+
+    @PutMapping("/tasks/{id}/complete")
     public ResponseEntity<?> completeTask(@PathVariable Long id) {
         nurseService.completeTask(id);
-        return ResponseEntity.ok(Map.of("message","Task completed"));
+        return ResponseEntity.ok(Map.of("message", "Task completed"));
+    }
+
+    // Legacy POST support
+    @PostMapping("/tasks/{id}/complete")
+    public ResponseEntity<?> completeTaskPost(@PathVariable Long id) {
+        nurseService.completeTask(id);
+        return ResponseEntity.ok(Map.of("message", "Task completed"));
     }
 
     @PostMapping("/vitals")
     public ResponseEntity<?> recordVitals(@RequestBody Map<String,Object> body,
-                                           @AuthenticationPrincipal UserPrincipal u) {
+                                          @AuthenticationPrincipal UserPrincipal u) {
         return ResponseEntity.ok(nurseService.recordVitals(body, u.getId()));
     }
 
@@ -64,7 +66,7 @@ public class NurseController {
 
     @PostMapping("/handover")
     public ResponseEntity<?> createHandover(@RequestBody Map<String,Object> body,
-                                             @AuthenticationPrincipal UserPrincipal u) {
+                                            @AuthenticationPrincipal UserPrincipal u) {
         return ResponseEntity.ok(nurseService.createHandoverNote(body, u.getId()));
     }
 
@@ -75,7 +77,7 @@ public class NurseController {
 
     @PostMapping("/emar/administer")
     public ResponseEntity<?> administerMed(@RequestBody Map<String,Object> body,
-                                            @AuthenticationPrincipal UserPrincipal u) {
+                                           @AuthenticationPrincipal UserPrincipal u) {
         return ResponseEntity.ok(nurseService.administerMedication(body, u.getId()));
     }
 }
