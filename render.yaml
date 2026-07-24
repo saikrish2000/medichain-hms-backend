@@ -1,0 +1,49 @@
+services:
+  # ── Backend (Spring Boot) ──────────────────────────────────
+  - type: web
+    name: medichain-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: medichain-mysql
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: medichain-mysql
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: medichain-mysql
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: medichain-mysql
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: medichain-mysql
+          property: password
+      - key: JWT_SECRET
+        value: MediChainHMS2025SuperSecretKey256BitsLongPleaseChange
+      - key: CORS_ORIGINS
+        value: https://medichain-frontend.onrender.com
+
+  # ── Frontend (React/Nginx) ─────────────────────────────────
+  - type: web
+    name: medichain-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    plan: free
+    buildArgs:
+      - name: VITE_API_BASE_URL
+        value: https://medichain-backend.onrender.com
+    rootDir: .
+
+databases:
+  - name: medichain-mysql
+    databaseName: hospital_db
+    plan: free
