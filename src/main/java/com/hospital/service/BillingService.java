@@ -108,7 +108,7 @@ public class BillingService {
     public ResponseEntity<?> downloadPdf(Long invoiceId) {
         try {
             Invoice invoice = getInvoice(invoiceId);
-            byte[] pdf = pdfService.generate(invoice);
+            byte[] pdf = pdfService.generateInvoicePdf(invoiceId);
             return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=invoice-" + invoiceId + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)
