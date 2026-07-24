@@ -1,5 +1,4 @@
 services:
-  # ── Backend (Spring Boot) ──────────────────────────────────
   - type: web
     name: medichain-backend
     runtime: docker
@@ -9,41 +8,44 @@ services:
     envVars:
       - key: DB_HOST
         fromDatabase:
-          name: medichain-mysql
+          name: medichain-db
           property: host
       - key: DB_PORT
         fromDatabase:
-          name: medichain-mysql
+          name: medichain-db
           property: port
       - key: DB_NAME
         fromDatabase:
-          name: medichain-mysql
+          name: medichain-db
           property: database
       - key: DB_USERNAME
         fromDatabase:
-          name: medichain-mysql
+          name: medichain-db
           property: user
       - key: DB_PASSWORD
         fromDatabase:
-          name: medichain-mysql
+          name: medichain-db
           property: password
       - key: JWT_SECRET
-        value: MediChainHMS2025SuperSecretKey256BitsLongPleaseChange
+        generateValue: true
       - key: CORS_ORIGINS
         value: https://medichain-frontend.onrender.com
-
-  # ── Frontend (React/Nginx) ─────────────────────────────────
-  - type: web
-    name: medichain-frontend
-    runtime: docker
-    dockerfilePath: ./frontend/Dockerfile
-    plan: free
-    buildArgs:
-      - name: VITE_API_BASE_URL
-        value: https://medichain-backend.onrender.com
-    rootDir: .
+      - key: MAIL_USERNAME
+        value: ""
+      - key: MAIL_PASSWORD
+        value: ""
+      - key: RAZORPAY_KEY_ID
+        value: ""
+      - key: RAZORPAY_KEY_SECRET
+        value: ""
+      - key: TWILIO_ACCOUNT_SID
+        value: ""
+      - key: TWILIO_AUTH_TOKEN
+        value: ""
+      - key: TWILIO_PHONE_NUMBER
+        value: ""
 
 databases:
-  - name: medichain-mysql
+  - name: medichain-db
     databaseName: hospital_db
     plan: free
