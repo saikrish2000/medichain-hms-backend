@@ -22,29 +22,40 @@ public class LabService {
     private final DoctorRepository    doctorRepo;
     private final UserRepository      userRepo;
 
+    // ── Dashboard ─────────────────────────────────────────────────────────
     public Map<String,Object> getDashboard() {
         Map<String,Object> stats = new LinkedHashMap<>();
-        stats.put("totalOrders",      orderRepo.count());
-        stats.put("pendingOrders",    orderRepo.countByStatus("ORDERED"));
-        stats.put("processingOrders", orderRepo.countByStatus("SAMPLE_COLLECTED"));
-        stats.put("completedToday",   0L);
+        stats.put("totalOrders",       orderRepo.count());
+        stats.put("pendingOrders",     orderRepo.countByStatus("ORDERED"));
+        stats.put("processingOrders",  orderRepo.countByStatus("SAMPLE_COLLECTED"));
+        stats.put("completedOrders",   orderRepo.countByStatus("COMPLETED"));
         return stats;
     }
 
+    // ── Tests ─────────────────────────────────────────────────────────────
     public List<LabTest> getAllTests() { return testRepo.findAll(Sort.by("name")); }
 
     public LabTest saveTest(LabTest test) { return testRepo.save(test); }
 
+    // ── Orders ────────────────────────────────────────────────────────────
+
+    /** All orders — optionally filtered by status */
     public Page<?> getOrders(int page, String status) {
-        Pageable p = PageRequest.of(page,20,Sort.by("createdAt").descending());
+        Pageable p = PageRequest.of(page, 20, Sort.by("createdAt").descending());
         if (status != null && !status.isBlank())
             return orderRepo.findByStatus(status, p);
         return orderRepo.findAll(p);
     }
 
+    /** Orders placed by a specific doctor */
+    public Page<LabOrder> getDoctorOrders(Long doctorId, int page) {
+        return orderRepo.findByDoctorId(doctorId,
+            PageRequest.of(page, 20, Sort.by("createdAt").descending()));
+    }
+
     public LabOrder getOrder(Long id) {
         return orderRepo.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("LabOrder","id",id));
+            .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "id", id));
     }
 
     @Transactional
@@ -60,25 +71,28 @@ public class LabService {
         LabOrder order = getOrder(orderId);
         order.setStatus("COMPLETED");
         order.setCompletedAt(LocalDateTime.now());
+        if (body.get("resultNotes") != null)
+            order.setResultNotes(body.get("resultNotes").toString());
         orderRepo.save(order);
-        // In a full impl, save LabResult entity here
-        return Map.of("message","Results uploaded","orderId", orderId,"data", body);
+        return Map.of("message", "Results uploaded successfully", "orderId", orderId, "data", body);
     }
 
     @Transactional
     public LabOrder createOrder(Long patientId, Long doctorId,
                                 List<Long> testIds, String clinicalNotes) {
         Patient patient = patientRepo.findById(patientId)
-            .orElseThrow(() -> new ResourceNotFoundException("Patient","id",patientId));
+            .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", patientId));
         Doctor doctor = doctorRepo.findById(doctorId)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor","id",doctorId));
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", doctorId));
+
         LabOrder order = new LabOrder();
         order.setPatient(patient);
         order.setDoctor(doctor);
         order.setClinicalNotes(clinicalNotes);
         order.setStatus("ORDERED");
         order.setCreatedAt(LocalDateTime.now());
-        if (testIds != null) order.setTests(testRepo.findAllById(testIds));
+        if (testIds != null && !testIds.isEmpty())
+            order.setTests(testRepo.findAllById(testIds));
         return orderRepo.save(order);
     }
 }
