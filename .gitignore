@@ -1,1 +1,16 @@
-.agents/.env
+target/
+*.class
+*.jar
+*.war
+*.ear
+.idea/
+*.iml
+.vscode/
+*.log
+logs/
+application-prod.properties
+application-local.properties
+*.env
+.env
+.DS_Store
+Thumbs.db

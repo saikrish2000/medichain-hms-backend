@@ -1,0 +1,70 @@
+databases:
+  - name: medichain-db
+    databaseName: hospital_db
+    plan: free
+    ipAllowList: []
+
+services:
+  - type: web
+    name: medichain-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      # ── PostgreSQL connection (individual properties → app constructs JDBC URL) ──
+      - key: DB_URL_PREFIX
+        value: "jdbc:postgresql://"
+      - key: DB_URL_PARAMS
+        value: ""
+      - key: DB_HOST
+        fromDatabase:
+          name: medichain-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: medichain-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: medichain-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: medichain-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: medichain-db
+          property: password
+      - key: DB_DRIVER
+        value: org.postgresql.Driver
+      - key: HIBERNATE_DIALECT
+        value: org.hibernate.dialect.PostgreSQLDialect
+
+      # ── JWT ──
+      - key: JWT_SECRET
+        generateValue: true
+
+      # ── CORS ──
+      - key: CORS_ORIGINS
+        value: https://medichain-frontend.onrender.com
+
+      # ── Mail (empty = disabled) ──
+      - key: MAIL_USERNAME
+        value: ""
+      - key: MAIL_PASSWORD
+        value: ""
+
+      # ── Razorpay (empty = mock mode) ──
+      - key: RAZORPAY_KEY_ID
+        value: ""
+      - key: RAZORPAY_KEY_SECRET
+        value: ""
+
+      # ── Twilio (empty = stub mode) ──
+      - key: TWILIO_ACCOUNT_SID
+        value: ""
+      - key: TWILIO_AUTH_TOKEN
+        value: ""
+      - key: TWILIO_PHONE_NUMBER
+        value: ""
