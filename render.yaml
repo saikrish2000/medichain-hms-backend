@@ -1,3 +1,9 @@
+databases:
+  - name: medichain-db
+    databaseName: hospital_db
+    plan: free
+    ipAllowList: []  # Allow internal connections only
+
 services:
   - type: web
     name: medichain-backend
@@ -5,18 +11,11 @@ services:
     dockerfilePath: ./Dockerfile
     plan: free
     envVars:
-      - key: DB_HOST
+      # ── PostgreSQL connection (auto-injected from Render database) ──
+      - key: SPRING_DATASOURCE_URL
         fromDatabase:
           name: medichain-db
-          property: host
-      - key: DB_PORT
-        fromDatabase:
-          name: medichain-db
-          property: port
-      - key: DB_NAME
-        fromDatabase:
-          name: medichain-db
-          property: database
+          property: connectionString
       - key: DB_USERNAME
         fromDatabase:
           name: medichain-db
@@ -25,26 +24,35 @@ services:
         fromDatabase:
           name: medichain-db
           property: password
+      - key: DB_DRIVER
+        value: org.postgresql.Driver
+      - key: HIBERNATE_DIALECT
+        value: org.hibernate.dialect.PostgreSQLDialect
+
+      # ── JWT ──
       - key: JWT_SECRET
         generateValue: true
+
+      # ── CORS ──
       - key: CORS_ORIGINS
         value: https://medichain-frontend.onrender.com
+
+      # ── Mail (empty = disabled) ──
       - key: MAIL_USERNAME
         value: ""
       - key: MAIL_PASSWORD
         value: ""
+
+      # ── Razorpay (empty = mock mode) ──
       - key: RAZORPAY_KEY_ID
         value: ""
       - key: RAZORPAY_KEY_SECRET
         value: ""
+
+      # ── Twilio (empty = stub mode) ──
       - key: TWILIO_ACCOUNT_SID
         value: ""
       - key: TWILIO_AUTH_TOKEN
         value: ""
       - key: TWILIO_PHONE_NUMBER
         value: ""
-
-databases:
-  - name: medichain-db
-    databaseName: hospital_db
-    plan: free
