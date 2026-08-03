@@ -15,13 +15,13 @@ public class Department {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "branch_id", nullable = false)
+    @JoinColumn(name = "branch_id")
     private HospitalBranch branch;
 
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private String code;
 
     @Column(columnDefinition = "TEXT")
