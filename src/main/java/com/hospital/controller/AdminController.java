@@ -101,6 +101,16 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getAllBranches());
     }
 
+    @PostMapping("/branches")
+    public ResponseEntity<HospitalBranch> createBranch(@RequestBody HospitalBranch branch) {
+        return ResponseEntity.ok(adminService.createBranch(branch));
+    }
+
+    @PostMapping("/specializations")
+    public ResponseEntity<Specialization> createSpecialization(@RequestBody Specialization spec) {
+        return ResponseEntity.ok(adminService.createSpecialization(spec));
+    }
+
     @GetMapping("/users")
     public ResponseEntity<Page<User>> users(@RequestParam(defaultValue="0") int page) {
         return ResponseEntity.ok(adminService.getAllUsers(page));
