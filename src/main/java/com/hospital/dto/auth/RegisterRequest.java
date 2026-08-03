@@ -57,6 +57,8 @@ public class RegisterRequest {
     private String city;
     private String state;
     private String pincode;
+    private String qualification;
+    private Integer experienceYears;
 
     private String preferredLanguage = "en";
 
