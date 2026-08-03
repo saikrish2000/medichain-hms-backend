@@ -1,6 +1,7 @@
 package com.hospital.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -13,6 +14,7 @@ public class Nurse {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
+    @JsonIgnore
     private User user;
 
     @Column(name = "license_number", unique = true, nullable = false, length = 100)
