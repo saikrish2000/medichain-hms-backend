@@ -50,10 +50,15 @@ public class SecurityConfig {
                 // ── Swagger / OpenAPI (always public) ─────────────────────
                 .requestMatchers(SWAGGER_PATHS).permitAll()
 
+                // ── Actuator health (public) ───────────────────────────────
+                .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/actuator/info").permitAll()
+
                 // ── Auth (public) ─────────────────────────────────────────
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/actuator/health").permitAll()
+
+                // ── WebSocket (public handshake, auth handled in interceptor) ──
+                .requestMatchers("/ws/**").permitAll()
 
                 // ── Admin ─────────────────────────────────────────────────
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -79,9 +84,15 @@ public class SecurityConfig {
                 // ── Ambulance ─────────────────────────────────────────────
                 .requestMatchers("/api/ambulance/**").hasAnyRole("AMBULANCE_OPERATOR", "ADMIN")
 
+                // ── Organ Donor Registry ──────────────────────────────────
+                .requestMatchers("/api/organ-donor/**").authenticated()
+
+                // ── Payment / Razorpay ────────────────────────────────────
+                .requestMatchers("/api/payment/**").hasAnyRole("ADMIN", "RECEPTIONIST", "PATIENT")
+
                 // ── Billing ───────────────────────────────────────────────
                 .requestMatchers("/api/billing/my-bills").hasRole("PATIENT")
-                .requestMatchers("/api/billing/**").hasAnyRole("ADMIN", "RECEPTIONIST")
+                .requestMatchers("/api/billing/**").hasAnyRole("ADMIN", "RECEPTIONIST", "PATIENT")
 
                 // ── Receptionist ──────────────────────────────────────────
                 .requestMatchers("/api/receptionist/**").hasAnyRole("RECEPTIONIST", "ADMIN")
