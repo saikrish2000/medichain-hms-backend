@@ -14,13 +14,13 @@ import java.util.Date;
 @Slf4j
 public class JwtTokenProvider {
 
-    @Value("${app.jwt.secret}")
+    @Value("${app.jwt.secret:MediChainHMS2025SuperSecretKey256BitsLongPleaseChange}")
     private String jwtSecret;
 
-    @Value("${app.jwt.expiration}")
+    @Value("${app.jwt.expiration:86400000}")
     private long jwtExpiration;
 
-    @Value("${app.jwt.refresh-expiration}")
+    @Value("${app.jwt.refresh-expiration:604800000}")
     private long refreshExpiration;
 
     private Key getSigningKey() {
