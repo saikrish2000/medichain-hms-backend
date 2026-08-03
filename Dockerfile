@@ -17,8 +17,10 @@ COPY --from=builder /app/target/*.jar app.jar
 
 EXPOSE 8080
 
+# Render free tier = 512MB RAM — keep JVM heap low to avoid OOM kills
 ENTRYPOINT ["java", \
-  "-Xmx450m", \
-  "-Xms128m", \
+  "-Xmx256m", \
+  "-Xms64m", \
+  "-XX:MaxMetaspaceSize=128m", \
   "-Djava.security.egd=file:/dev/./urandom", \
   "-jar", "app.jar"]
