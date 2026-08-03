@@ -108,6 +108,12 @@ public class AdminService {
     // ── Branches ──────────────────────────────────────────────────────────
     public List<HospitalBranch> getAllBranches() { return branchRepo.findAll(); }
 
+    @Transactional
+    public HospitalBranch createBranch(HospitalBranch branch) { return branchRepo.save(branch); }
+
+    @Transactional
+    public Specialization createSpecialization(Specialization spec) { return specRepo.save(spec); }
+
     // ── Users ─────────────────────────────────────────────────────────────
     public Page<User> getAllUsers(int page) {
         return userRepo.findAll(PageRequest.of(page,20,Sort.by("createdAt").descending()));
