@@ -1,6 +1,7 @@
 package com.hospital.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.*;
@@ -33,6 +34,7 @@ public class Appointment {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "slot_id")
+    @JsonIgnore
     private DoctorSlot slot;
 
     @Column(name = "appointment_date", nullable = false)
@@ -104,6 +106,7 @@ public class Appointment {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cancelled_by")
+    @JsonIgnore
     private User cancelledBy;
 
     @Column(name = "created_at", updatable = false)
