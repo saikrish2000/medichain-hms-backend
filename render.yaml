@@ -2,7 +2,7 @@ databases:
   - name: medichain-db
     databaseName: hospital_db
     plan: free
-    ipAllowList: []  # Allow internal connections only
+    ipAllowList: []
 
 services:
   - type: web
@@ -11,11 +11,23 @@ services:
     dockerfilePath: ./Dockerfile
     plan: free
     envVars:
-      # ── PostgreSQL connection (auto-injected from Render database) ──
-      - key: SPRING_DATASOURCE_URL
+      # ── PostgreSQL connection (individual properties → app constructs JDBC URL) ──
+      - key: DB_URL_PREFIX
+        value: "jdbc:postgresql://"
+      - key: DB_URL_PARAMS
+        value: ""
+      - key: DB_HOST
         fromDatabase:
           name: medichain-db
-          property: connectionString
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: medichain-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: medichain-db
+          property: database
       - key: DB_USERNAME
         fromDatabase:
           name: medichain-db
