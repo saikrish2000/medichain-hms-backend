@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -46,10 +47,10 @@ public class HospitalBranch {
     private String email;
 
     @Column(precision = 10, scale = 8)
-    private Double latitude;
+    private BigDecimal latitude;
 
     @Column(precision = 11, scale = 8)
-    private Double longitude;
+    private BigDecimal longitude;
 
     @Column(name = "is_active")
     private Boolean isActive = true;
