@@ -1,5 +1,5 @@
 # ── Stage 1: Build ────────────────────────────────────────────
-FROM maven:3.9.6-eclipse-temurin-17 AS builder
+FROM maven:3.9-eclipse-temurin-17 AS builder
 
 WORKDIR /app
 COPY pom.xml .
@@ -13,12 +13,7 @@ FROM eclipse-temurin:17-jre-alpine
 
 WORKDIR /app
 
-RUN addgroup -S medichain && adduser -S medichain -G medichain
-
 COPY --from=builder /app/target/*.jar app.jar
-RUN chown medichain:medichain app.jar
-
-USER medichain
 
 EXPOSE 8080
 
