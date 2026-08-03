@@ -1,6 +1,7 @@
 package com.hospital.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -17,6 +18,7 @@ public class Patient {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", unique = true, nullable = false)
+    @JsonIgnore
     private User user;
 
     @Column(name = "patient_id_number", unique = true, nullable = false, length = 50)
